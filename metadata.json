@@ -1,0 +1,6 @@
+{
+  "name": "ERP Maquila Textil",
+  "description": "ERP completo para la gestión de producción, pedidos, capacidad de taller y catálogos en maquila textil, con soporte transaccional y control de concurrencia.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
