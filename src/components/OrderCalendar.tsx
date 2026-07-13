@@ -29,6 +29,7 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
   const [loading, setLoading] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [detailedOrder, setDetailedOrder] = useState<Order | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOrders();
@@ -37,15 +38,19 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
   const fetchOrders = async () => {
     setLoading(true);
     try {
+      setLoadError(null);
       const res = await fetch('/api/orders', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await res.json();
       if (data.success) {
-        setOrders(data.orders);
+        setOrders(data.orders || []);
+      } else {
+        setLoadError(data.message || 'No fue posible cargar los pedidos.');
       }
     } catch (err) {
       console.error('Error fetching orders:', err);
+      setLoadError('No fue posible cargar los pedidos. Intente recargar la página.');
     } finally {
       setLoading(false);
     }
@@ -109,8 +114,23 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
 
   const getOrdersForDay = (day: number) => {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return orders.filter((o) => o.estimated_delivery_date === dateStr);
+    return orders.filter((o) => getOrderDateKey(o.estimated_delivery_date) === dateStr);
   };
+
+  // MySQL DATE may arrive as YYYY-MM-DD or as an ISO timestamp.
+  // Compare only the date portion so both formats render in their calendar day.
+  const getOrderDateKey = (value: unknown) => {
+    if (value instanceof Date) {
+      return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+    }
+
+    const match = String(value || '').match(/^(\d{4}-\d{2}-\d{2})/);
+    return match ? match[1] : '';
+  };
+
+  const ordersInCurrentMonth = orders.filter((order) =>
+    getOrderDateKey(order.estimated_delivery_date).startsWith(`${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`)
+  );
 
   const getPriorityBadgeClass = (priority: string) => {
     switch (priority) {
@@ -209,6 +229,9 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
           <span className="text-base font-bold text-slate-800">
             {monthsEs[currentDate.getMonth()]} {currentDate.getFullYear()}
           </span>
+          <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+            {ordersInCurrentMonth.length} pedido{ordersInCurrentMonth.length === 1 ? '' : 's'}
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -228,6 +251,12 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
 
       {/* Calendar Grid */}
       <div className="bg-white rounded-3xl border border-slate-150 overflow-hidden shadow-xs">
+      {loadError && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {loadError}
+        </div>
+      )}
+
         <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-150 text-center py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
           <div>Dom</div>
           <div>Lun</div>

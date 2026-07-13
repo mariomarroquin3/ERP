@@ -8,3 +8,8 @@ coverage/
 !.env.example
 .env.example
 .claude/settings.local.json
+/.codex/
+config.toml
+codex.toml
+.codex/
+.codex/config.toml
