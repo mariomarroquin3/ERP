@@ -1371,13 +1371,18 @@ export async function updateProductSizes(
 // NEW ADVANCED ERP MODULES (PAYMENTS, BILLING, STATE MACHINE, AUDITING, REPORTS)
 // ==========================================
 
-export async function createAuditLog(userName: string, action: string, oldValue: string, newValue: string): Promise<void> {
+export async function createAuditLog(userName: string | null | undefined, action: string, oldValue: string, newValue: string): Promise<void> {
+  // Authentication tokens may use `name` while other callers use `full_name`.
+  // Keep the audit trail writable even if a legacy or incomplete caller omits it.
+  const auditUserName = typeof userName === 'string' && userName.trim()
+    ? userName.trim()
+    : 'Usuario no identificado';
   const pool = await getDbPool();
   if (pool) {
     try {
       await pool.query(
         'INSERT INTO audit_logs (user_name, action, old_value, new_value) VALUES (?, ?, ?, ?)',
-        [userName, action, oldValue, newValue]
+        [auditUserName, action, oldValue, newValue]
       );
     } catch (err) {
       console.error('Failed to write MySQL audit log:', err);
@@ -1385,7 +1390,7 @@ export async function createAuditLog(userName: string, action: string, oldValue:
   } else {
     mockDb.auditLogs.push({
       id: mockDb.auditLogs.length + 1,
-      user_name: userName,
+      user_name: auditUserName,
       action,
       created_at: new Date().toISOString(),
       old_value: oldValue,
