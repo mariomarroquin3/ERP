@@ -568,7 +568,7 @@ app.post('/api/production/tasks/:id/advance', authenticateToken, requireRole(['a
     const taskId = parseInt(req.params.id, 10);
     const { comment } = req.body;
 
-    await advanceTaskStage(taskId, req.user.id, req.user.full_name, comment);
+    await advanceTaskStage(taskId, req.user.id, req.user.name || req.user.full_name || req.user.email, comment);
     res.json({ success: true, message: 'Fase del pedido avanzada con éxito' });
   } catch (err) {
     next(err);
@@ -589,7 +589,7 @@ app.post('/api/production/tasks/:id/rework', authenticateToken, requireRole(['ad
       rework_type, 
       description, 
       req.user.id, 
-      req.user.full_name, 
+      req.user.name || req.user.full_name || req.user.email,
       target_stage_id ? parseInt(target_stage_id, 10) : 1
     );
     res.json({ success: true, message: 'Operación de retrabajo registrada con éxito' });
