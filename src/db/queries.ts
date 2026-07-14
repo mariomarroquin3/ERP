@@ -520,7 +520,8 @@ export async function getProductionTasks(dateStr?: string, orderId?: number): Pr
                 pst.name as status_name, 
                 u.full_name as assigned_name,
                 p.name as product_name,
-                o.client_name as client_name
+                o.client_name as client_name,
+                o.status_id as order_status_id
          FROM production_tasks pt
          JOIN production_stages ps ON pt.stage_id = ps.id
          JOIN production_status pst ON pt.status_id = pst.id
@@ -541,7 +542,8 @@ export async function getProductionTasks(dateStr?: string, orderId?: number): Pr
                 pst.name as status_name, 
                 u.full_name as assigned_name,
                 p.name as product_name,
-                o.client_name as client_name
+                o.client_name as client_name,
+                o.status_id as order_status_id
          FROM production_tasks pt
          JOIN production_stages ps ON pt.stage_id = ps.id
          JOIN production_status pst ON pt.status_id = pst.id
@@ -611,7 +613,8 @@ export async function getActiveProductionTasks(): Promise<ProductionTask[]> {
               pst.name as status_name, 
               u.full_name as assigned_name,
               p.name as product_name,
-              o.client_name as client_name
+              o.client_name as client_name,
+              o.status_id as order_status_id
        FROM (
          SELECT *,
                 ROW_NUMBER() OVER (PARTITION BY order_item_id ORDER BY sequence_order_inner ASC, id ASC) as rn

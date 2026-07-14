@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ProductionTask, Order, User } from '../types';
+import { toast } from 'sonner';
 
 interface KanbanBoardProps {
   token: string;
@@ -55,8 +56,29 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
   const [targetStageId, setTargetStageId] = useState<number>(1); // default Corte (1)
   const [reworkSubmitting, setReworkSubmitting] = useState(false);
 
+  // Validación de estado del pedido antes de avanzar
+  const validateProductionStatus = (task: ProductionTask) => {
+    if (task.order_status_id !== 3) {
+      toast.error('El pedido no está en producción', {
+        description: 'Solo puedes iniciar procesos o confirmar avances cuando el pedido esté en estado EN PRODUCCIÓN.',
+        duration: 4000,
+      });
+      return false;
+    }
+    return true;
+  };
+
+  // Función específica para abrir el modal de avanzar etapa
+  const handleOpenAdvanceModal = (task: ProductionTask) => {
+    // Validamos antes de abrir el modal
+    if (validateProductionStatus(task)) {
+      setAdvancingTask(task);
+    }
+  };
+
   const handleAdvanceStage = async () => {
     if (!advancingTask) return;
+
     setAdvanceSubmitting(true);
     try {
       const res = await fetch(`/api/production/tasks/${advancingTask.id}/advance`, {
@@ -69,7 +91,9 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
           comment: advanceComment || 'Fase completada y avanzada por supervisor'
         })
       });
+
       const data = await res.json();
+
       if (data.success) {
         setAdvancingTask(null);
         setAdvanceComment('');
@@ -271,6 +295,11 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
   };
 
   const promptStatusChange = (task: ProductionTask, targetStatusId: number) => {
+    // Validar si es "Iniciar Proceso" (estado 2)
+    if (targetStatusId === 2 && !validateProductionStatus(task)) {
+      return;
+    }
+
     setCommentingTask(task);
     setNewStatusId(targetStatusId);
     setStatusComment('');
@@ -676,7 +705,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                                   {/* Advance to next stage button */}
                                   {task.stage_id < 10 && (
                                     <button
-                                      onClick={() => setAdvancingTask(task)}
+                                      onClick={() => handleOpenAdvanceModal(task)}
                                       className="inline-flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold py-1.5 px-2 rounded-lg transition gap-0.5"
                                       title="Avanzar de Etapa (Completar esta y pasar a la siguiente)"
                                     >

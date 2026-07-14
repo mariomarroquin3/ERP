@@ -139,6 +139,8 @@ export interface ProductionTask {
   assigned_name?: string;
   product_name?: string;
   client_name?: string;
+  order_status_id?: number;
+  order_status?: string;
 }
 
 export interface WorkCalendar {
