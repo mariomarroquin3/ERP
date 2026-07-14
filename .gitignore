@@ -13,3 +13,7 @@ config.toml
 codex.toml
 .codex/
 .codex/config.toml
+.codex/
+.claude/
+.env
+.env.local
