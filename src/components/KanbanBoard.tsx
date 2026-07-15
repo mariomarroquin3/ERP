@@ -26,6 +26,28 @@ interface KanbanBoardProps {
   user: User;
 }
 
+const formatSimpleDate = (dateStr: string) => {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  
+  if (dateStr.length <= 10) {
+    const [year, month, day] = dateStr.split('-');
+    if (year && month && day) return `${day}/${month}/${year}`;
+  }
+  
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const year = d.getFullYear();
+  let hours = d.getHours();
+  const minutes = d.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'pm' : 'am';
+  hours = hours % 12;
+  hours = hours ? hours : 12; 
+  
+  return `${day}/${month}/${year} ${hours}:${minutes}${ampm}`;
+};
+
 export default function KanbanBoard({ token, user }: KanbanBoardProps) {
   const [tasks, setTasks] = useState<ProductionTask[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -48,6 +70,33 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
   const [advancingTask, setAdvancingTask] = useState<ProductionTask | null>(null);
   const [advanceComment, setAdvanceComment] = useState('');
   const [advanceSubmitting, setAdvanceSubmitting] = useState(false);
+
+  // Order Timeline inside Card
+  const [expandedTimelineTaskId, setExpandedTimelineTaskId] = useState<number | null>(null);
+  const [timelineTasks, setTimelineTasks] = useState<any[]>([]);
+  const [loadingTimeline, setLoadingTimeline] = useState(false);
+
+  const toggleTimeline = async (taskId: number, orderId: number) => {
+    if (expandedTimelineTaskId === taskId) {
+      setExpandedTimelineTaskId(null);
+      return;
+    }
+    setExpandedTimelineTaskId(taskId);
+    setLoadingTimeline(true);
+    try {
+      const res = await fetch(`/api/production/tasks?order_id=${orderId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTimelineTasks(data.tasks || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingTimeline(false);
+    }
+  };
 
   // Rework modal state
   const [reworkTask, setReworkTask] = useState<ProductionTask | null>(null);
@@ -662,8 +711,9 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                           {/* Task Body */}
                           <div className="space-y-3.5">
                             <div className="flex justify-between items-start gap-1 flex-wrap">
-                              <div className="flex gap-1.5 items-center">
-                                <span className="text-[10px] font-extrabold text-slate-400 font-mono">TASK #{task.id}</span>
+                              <div className="flex gap-1.5 items-center flex-wrap">
+                                <span className="text-[10px] font-extrabold text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">TASK #{task.id}</span>
+                                <span className="text-[10px] font-extrabold text-indigo-600 font-mono bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">PEDIDO #{task.order_id}</span>
                                 {task.task_type && task.task_type !== 'normal' && (
                                   <span className={`px-1.5 py-0.5 text-[8px] font-extrabold rounded-md uppercase border ${
                                     task.task_type === 'repair'
@@ -697,7 +747,16 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                                 className="grow inline-flex items-center justify-center gap-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-semibold py-1.5 px-2 rounded-lg transition"
                               >
                                 <Eye className="h-3.5 w-3.5" />
-                                Ver Ficha
+                                Ficha
+                              </button>
+
+                              <button
+                                onClick={() => toggleTimeline(task.id, task.order_id)}
+                                className="grow inline-flex items-center justify-center gap-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-semibold py-1.5 px-2 rounded-lg transition"
+                                title="Ver Fases del Pedido"
+                              >
+                                <Layers className="h-3.5 w-3.5" />
+                                Fases
                               </button>
 
                               {(user.role === 'admin' || user.role === 'taller') && (
@@ -781,6 +840,34 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                                 </button>
                               )}
                             </div>
+
+                            {/* Fases del Pedido Dropdown */}
+                            {expandedTimelineTaskId === task.id && (
+                              <div className="pt-2 mt-2 border-t border-slate-150">
+                                <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Cronograma del Pedido</h5>
+                                {loadingTimeline ? (
+                                  <div className="text-center py-4"><span className="animate-spin inline-block h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></span></div>
+                                ) : (
+                                  <div className="space-y-1.5">
+                                    {timelineTasks.map((tt: any) => (
+                                      <div key={tt.id} className="flex justify-between items-center text-[9px] p-1.5 rounded bg-slate-50 border border-slate-150">
+                                        <div className="flex items-center gap-1.5">
+                                          <div className={`h-2 w-2 rounded-full ${tt.status_id === 3 ? 'bg-emerald-500' : tt.status_id === 2 ? 'bg-blue-500' : 'bg-slate-300'}`}></div>
+                                          <span className="font-bold text-slate-700">{tt.stage_name}</span>
+                                        </div>
+                                        <div className="text-right">
+                                          <div className="font-semibold text-slate-500">{tt.status_name}</div>
+                                          <div className="text-[8px] text-slate-400">
+                                            {tt.status_id === 3 ? `Fin: ${formatSimpleDate(tt.updated_at || tt.end_date_actual)}` : `Prog: ${formatSimpleDate(tt.start_date)}`}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                           </div>
                         </div>
                       ))
