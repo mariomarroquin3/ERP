@@ -9,6 +9,7 @@ import AdminPanel from './components/AdminPanel';
 import MyOrders from './components/MyOrders';
 import Dashboard from './components/Dashboard';
 import { User } from './types';
+import { Toaster } from 'sonner';
 
 export default function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('maquila_token'));
@@ -138,6 +139,16 @@ export default function App() {
 
   return (
     <div className="flex bg-slate-50 h-screen overflow-hidden">
+
+      {/* Sonner - estilo elegante blanco/negro */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          className: 'bg-white text-zinc-900 border border-zinc-200 shadow-md rounded-xl',
+          descriptionClassName: 'text-zinc-500',
+        }}
+      />
+
       {/* Dynamic RBAC Navigation Sidebar */}
       <Sidebar 
         user={user} 
