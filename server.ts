@@ -698,6 +698,18 @@ app.post('/api/admin/users', authenticateToken, requireRole(['admin']), async (r
       return res.status(400).json({ success: false, message: 'El rol de usuario seleccionado no existe en el sistema.' });
     }
 
+    if (rId === 4) {
+      if (!/^\d{4}-\d{6}-\d{3}-\d$/.test(nit || '')) {
+        return res.status(400).json({ success: false, message: 'El NIT debe tener el formato xxxx-xxxxxx-xxx-x.' });
+      }
+      if (!/^\d{7}-\d$/.test(nrc || '')) {
+        return res.status(400).json({ success: false, message: 'El NRC debe tener el formato xxxxxxx-x.' });
+      }
+      if (!/^\d{4}-\d{4}$/.test(telefono || '')) {
+        return res.status(400).json({ success: false, message: 'El teléfono debe tener el formato xxxx-xxxx.' });
+      }
+    }
+
     const existingUser = await getUserByEmail(email.trim());
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'El correo electrónico ya está registrado en el sistema.' });
