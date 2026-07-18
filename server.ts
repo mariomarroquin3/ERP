@@ -668,7 +668,7 @@ app.get('/api/admin/users', authenticateToken, requireRole(['admin']), async (re
 // Create new user
 app.post('/api/admin/users', authenticateToken, requireRole(['admin']), async (req: any, res: any, next: any) => {
   try {
-    const { full_name, email, password, role_id, is_active } = req.body;
+    const { full_name, email, password, role_id, is_active, nit, nrc, nombre_comercial, actividad_economica, direccion, telefono } = req.body;
     if (!full_name || full_name.trim() === '') {
       return res.status(400).json({ success: false, message: 'El nombre completo es un campo obligatorio.' });
     }
@@ -704,7 +704,20 @@ app.post('/api/admin/users', authenticateToken, requireRole(['admin']), async (r
 
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await createUser(full_name.trim(), email.trim().toLowerCase(), passwordHash, rId, is_active !== false);
+    const user = await createUser(
+      full_name.trim(), 
+      email.trim().toLowerCase(), 
+      passwordHash, 
+      rId, 
+      is_active !== false,
+      req.user?.full_name || 'Sistema',
+      nit || null,
+      nrc || null,
+      nombre_comercial || null,
+      actividad_economica || null,
+      direccion || null,
+      telefono || null
+    );
 
     // Audit log
     await createAuditLog(

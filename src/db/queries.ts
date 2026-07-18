@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { getDbPool, mockDb, MySqlCustomError, User, Product, ProductAttribute, ProductSize, Order, OrderItem, ProductionTask, WorkCalendar, Size, ProductAttributeValue, getProductionSchedule, ReworkEvent } from './db';
 import {
   snapshotOrderItemSize,
@@ -1580,11 +1581,43 @@ export async function createInvoice(
   let invoiceNumber = '';
   let subtotal = 0;
   let total = 0;
+  
+  // DTE Fields
+  const codigoGeneracion = crypto.randomUUID().toUpperCase();
+  const numeroControl = `DTE-03-M001P001-${String(Date.now()).padStart(15, '0')}`;
+  const selloRecepcion = crypto.randomBytes(16).toString('hex').toUpperCase();
+  // Generate timestamp in El Salvador local time (UTC-6) instead of UTC
+  const now = new Date();
+  const svFormatter = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/El_Salvador',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  const parts = svFormatter.formatToParts(now);
+  const get = (type: string) => parts.find(p => p.type === type)?.value || '00';
+  const fechaHoraGeneracion = `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
+
+  let finalTax = tax;
 
   if (pool) {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
+
+      // Get order and client details
+      const [orderRows]: any = await conn.query('SELECT client_id, client_name FROM orders WHERE id = ?', [orderId]);
+      if (orderRows.length === 0) throw new Error('Pedido no encontrado');
+      
+      let clientInfo: any = {};
+      if (orderRows[0].client_id) {
+        const [userRows]: any = await conn.query('SELECT * FROM users WHERE id = ?', [orderRows[0].client_id]);
+        if (userRows.length > 0) clientInfo = userRows[0];
+      }
 
       // Generate a deterministic and unique invoice number within the transaction
       const year = new Date().getFullYear();
@@ -1593,12 +1626,29 @@ export async function createInvoice(
 
       // Perform validation and locking inside transaction
       subtotal = await validateDiscountAuthorization(conn, orderId, discount, userRole);
-      total = subtotal + tax - discount;
+      
+      let ventasNoSujetas = 0, ventasExentas = 0, ventasGravadas = 0;
+      let ivaRetenido = 0, ivaPercibido = 0, retencionRenta = 0;
+
+      if (invoiceType === 'credito_fiscal') {
+        ventasGravadas = subtotal - discount;
+        finalTax = ventasGravadas * 0.13;
+      }
+      total = subtotal + finalTax - discount;
 
       const [res]: any = await conn.query(
-        `INSERT INTO invoices (order_id, invoice_number, subtotal, tax, discount, total, invoice_type)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [orderId, invoiceNumber, subtotal, tax, discount, total, invoiceType]
+        `INSERT INTO invoices (
+          order_id, invoice_number, codigo_generacion, numero_control, sello_recepcion, fecha_hora_generacion,
+          receptor_nombre, receptor_nit, receptor_nrc, receptor_actividad_economica, receptor_direccion, receptor_telefono, receptor_correo, receptor_nombre_comercial,
+          subtotal, tax, ventas_no_sujetas, ventas_exentas, ventas_gravadas, iva_retenido, iva_percibido, retencion_renta, discount, total, invoice_type
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          orderId, invoiceNumber, codigoGeneracion, numeroControl, selloRecepcion, fechaHoraGeneracion,
+          clientInfo.full_name || orderRows[0].client_name, clientInfo.nit || null, clientInfo.nrc || null, 
+          clientInfo.actividad_economica || null, clientInfo.direccion || null, clientInfo.telefono || null, 
+          clientInfo.email || null, clientInfo.nombre_comercial || null,
+          subtotal, finalTax, ventasNoSujetas, ventasExentas, ventasGravadas, ivaRetenido, ivaPercibido, retencionRenta, discount, total, invoiceType
+        ]
       );
       invoiceId = res.insertId;
       await conn.commit();
@@ -1612,6 +1662,11 @@ export async function createInvoice(
     const order = mockDb.orders.find((o) => o.id === orderId);
     if (!order) {
       throw new Error('Pedido no encontrado');
+    }
+
+    let clientInfo: any = {};
+    if (order.client_id) {
+       clientInfo = mockDb.users.find(u => u.id === order.client_id) || {};
     }
 
     // Determine invoice number
@@ -1635,20 +1690,45 @@ export async function createInvoice(
       );
     }
 
-    total = subtotal + tax - discount;
+    let ventasNoSujetas = 0, ventasExentas = 0, ventasGravadas = 0;
+    let ivaRetenido = 0, ivaPercibido = 0, retencionRenta = 0;
+
+    if (invoiceType === 'credito_fiscal') {
+      ventasGravadas = subtotal - discount;
+      finalTax = ventasGravadas * 0.13;
+    }
+    total = subtotal + finalTax - discount;
 
     invoiceId = mockDb.invoices.length + 1;
     mockDb.invoices.push({
       id: invoiceId,
       order_id: orderId,
       invoice_number: invoiceNumber,
+      codigo_generacion: codigoGeneracion,
+      numero_control: numeroControl,
+      sello_recepcion: selloRecepcion,
+      fecha_hora_generacion: fechaHoraGeneracion,
+      receptor_nombre: clientInfo.full_name || order.client_name,
+      receptor_nit: clientInfo.nit || null,
+      receptor_nrc: clientInfo.nrc || null,
+      receptor_actividad_economica: clientInfo.actividad_economica || null,
+      receptor_direccion: clientInfo.direccion || null,
+      receptor_telefono: clientInfo.telefono || null,
+      receptor_correo: clientInfo.email || null,
+      receptor_nombre_comercial: clientInfo.nombre_comercial || null,
       subtotal,
-      tax,
+      tax: finalTax,
+      ventas_no_sujetas: ventasNoSujetas,
+      ventas_exentas: ventasExentas,
+      ventas_gravadas: ventasGravadas,
+      iva_retenido: ivaRetenido,
+      iva_percibido: ivaPercibido,
+      retencion_renta: retencionRenta,
       discount,
       total,
       created_at: new Date().toISOString(),
       invoice_type: invoiceType
-    });
+    } as any);
   }
 
   // Log in Audit Logs
@@ -1656,7 +1736,7 @@ export async function createInvoice(
     userName,
     `Factura emitida - Pedido #${orderId}`,
     '-',
-    `Factura #${invoiceNumber} por total de $${total.toFixed(2)} (Subtotal: $${subtotal.toFixed(2)}, Impuestos: $${tax.toFixed(2)}, Descuento: $${discount.toFixed(2)})`
+    `Factura #${invoiceNumber} por total de $${total.toFixed(2)} (Subtotal: $${subtotal.toFixed(2)}, Impuestos: $${finalTax.toFixed(2)}, Descuento: $${discount.toFixed(2)})`
   );
 
   return invoiceId;
@@ -2351,13 +2431,26 @@ export async function updateRolePermission(roleId: number, permissionKey: string
   );
 }
 
-export async function createUser(fullName: string, email: string, passwordHash: string, roleId: number, isActive: boolean, userName: string = 'Sistema'): Promise<any> {
+export async function createUser(
+  fullName: string, 
+  email: string, 
+  passwordHash: string, 
+  roleId: number, 
+  isActive: boolean, 
+  userName: string = 'Sistema',
+  nit: string | null = null,
+  nrc: string | null = null,
+  nombre_comercial: string | null = null,
+  actividad_economica: string | null = null,
+  direccion: string | null = null,
+  telefono: string | null = null
+): Promise<any> {
   const pool = await getDbPool();
   let user: any;
   if (pool) {
     const [result]: any = await pool.query(
-      'INSERT INTO users (full_name, email, password_hash, role_id, is_active) VALUES (?, ?, ?, ?, ?)',
-      [fullName, email, passwordHash, roleId, isActive]
+      'INSERT INTO users (full_name, email, password_hash, role_id, is_active, nit, nrc, nombre_comercial, actividad_economica, direccion, telefono) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [fullName, email, passwordHash, roleId, isActive, nit, nrc, nombre_comercial, actividad_economica, direccion, telefono]
     );
     user = { id: result.insertId, full_name: fullName, email, role_id: roleId, is_active: isActive };
   } else {
@@ -2368,7 +2461,13 @@ export async function createUser(fullName: string, email: string, passwordHash: 
       email,
       password_hash: passwordHash,
       role_id: roleId,
-      is_active: isActive
+      is_active: isActive,
+      nit,
+      nrc,
+      nombre_comercial,
+      actividad_economica,
+      direccion,
+      telefono
     };
     mockDb.users.push(newUser);
     user = newUser;

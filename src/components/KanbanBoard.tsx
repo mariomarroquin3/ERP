@@ -148,7 +148,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
         setAdvanceComment('');
         fetchTasks();
       } else {
-        alert(`Error al avanzar etapa: ${data.message}`);
+        toast.error(`Error al avanzar etapa: ${data.message}`);
       }
     } catch (err) {
       console.error('Error advancing stage:', err);
@@ -160,7 +160,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
   const handleReworkSubmit = async () => {
     if (!reworkTask) return;
     if (!reworkDescription.trim()) {
-      alert('Por favor describe las instrucciones o motivo del retrabajo');
+      toast.warning('Por favor describe las instrucciones o motivo del retrabajo');
       return;
     }
     setReworkSubmitting(true);
@@ -185,7 +185,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
         setTargetStageId(1);
         fetchTasks();
       } else {
-        alert(`Error al registrar retrabajo: ${data.message}`);
+        toast.error(`Error al registrar retrabajo: ${data.message}`);
       }
     } catch (err) {
       console.error('Error in rework request:', err);
@@ -236,11 +236,11 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
       });
       const data = await res.json();
       if (data.success) {
-        alert(`${selectedReviewTaskIds.length} tareas aprobadas y completadas exitosamente.`);
+        toast.success(`${selectedReviewTaskIds.length} tareas aprobadas y completadas exitosamente.`);
         fetchPendingReviewTasks();
         fetchTasks();
       } else {
-        alert(`Error al realizar aprobación masiva: ${data.message}`);
+        toast.error(`Error al realizar aprobación masiva: ${data.message}`);
       }
     } catch (err) {
       console.error('Error in bulk approval:', err);
@@ -268,7 +268,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
         fetchPendingReviewTasks();
         fetchTasks();
       } else {
-        alert(`Error al aprobar tarea: ${data.message}`);
+        toast.error(`Error al aprobar tarea: ${data.message}`);
       }
     } catch (err) {
       console.error('Error in single task approval:', err);
@@ -385,7 +385,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
           fetchPendingReviewTasks();
         }
       } else {
-        alert(`Error al actualizar estado: ${data.message}`);
+        toast.error(`Error al actualizar estado: ${data.message}`);
       }
     } catch (err) {
       console.error('Error updating task:', err);
