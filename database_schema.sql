@@ -1,3 +1,6 @@
+DROP DATABASE IF EXISTS `erp_maquila_db`;
+CREATE DATABASE `erp_maquila_db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `erp_maquila_db`;
 -- =============================================================================
 -- ERP LIGHT - ESQUEMA DE BASE DE DATOS REAL Y AMPLIADO
 -- Diseñado para: Gestión de producción textil, pedidos, facturación y capacidad
@@ -102,6 +105,12 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     role_id INT NOT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
+    nit VARCHAR(20) NULL,
+    nrc VARCHAR(20) NULL,
+    nombre_comercial VARCHAR(255) NULL,
+    actividad_economica VARCHAR(255) NULL,
+    direccion TEXT NULL,
+    telefono VARCHAR(50) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -237,8 +246,26 @@ CREATE TABLE IF NOT EXISTS invoices (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT NOT NULL,
     invoice_number VARCHAR(100) NOT NULL UNIQUE,
+    codigo_generacion VARCHAR(36) NULL,
+    numero_control VARCHAR(50) NULL,
+    sello_recepcion VARCHAR(100) NULL,
+    fecha_hora_generacion DATETIME NULL,
+    receptor_nombre VARCHAR(255) NULL,
+    receptor_nit VARCHAR(20) NULL,
+    receptor_nrc VARCHAR(20) NULL,
+    receptor_actividad_economica VARCHAR(255) NULL,
+    receptor_direccion TEXT NULL,
+    receptor_telefono VARCHAR(50) NULL,
+    receptor_correo VARCHAR(255) NULL,
+    receptor_nombre_comercial VARCHAR(255) NULL,
     subtotal DECIMAL(10, 2) NOT NULL,
     tax DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    ventas_no_sujetas DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    ventas_exentas DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    ventas_gravadas DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    iva_retenido DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    iva_percibido DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    retencion_renta DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     discount DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     total DECIMAL(10, 2) NOT NULL,
     invoice_type VARCHAR(50) NOT NULL, -- 'consumidor_final' o 'credito_fiscal'

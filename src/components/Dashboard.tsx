@@ -17,7 +17,9 @@ import {
   Search,
   CheckCircle2
 } from 'lucide-react';
-import { User } from '../types';
+import { User, Order, Payment, ProductionTask, Invoice } from '../types';
+import { InvoiceDocument } from './InvoiceDocument';
+import { toast } from 'sonner';
 
 interface DashboardProps {
   token: string;
@@ -53,16 +55,12 @@ export default function Dashboard({ token, user, setActiveTab }: DashboardProps)
   const [invoiceNotes, setInvoiceNotes] = useState<string>('');
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
 
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
+  const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
   }, [period]);
-
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -102,7 +100,7 @@ export default function Dashboard({ token, user, setActiveTab }: DashboardProps)
       if (invoicesData.success) setInvoices(invoicesData.invoices);
     } catch (err) {
       console.error('Error fetching dashboard metrics:', err);
-      showToast('Error al actualizar las métricas del sistema', 'error');
+      toast.error('Error al actualizar las métricas del sistema');
     } finally {
       setLoading(false);
     }
@@ -133,7 +131,7 @@ export default function Dashboard({ token, user, setActiveTab }: DashboardProps)
 
       const data = await res.json();
       if (data.success) {
-        showToast('Pago registrado correctamente');
+        toast.success('Pago registrado correctamente');
         setShowPaymentModal(false);
         setPaymentOrderId('');
         setPaymentAmount('');
@@ -174,7 +172,18 @@ export default function Dashboard({ token, user, setActiveTab }: DashboardProps)
 
       const data = await res.json();
       if (data.success) {
-        showToast('Factura emitida con éxito');
+        toast.success('Factura emitida con éxito');
+
+        const invoicesRes = await fetch('/api/invoices', { headers: { 'Authorization': `Bearer ${token}` } });
+        const invoicesData = await invoicesRes.json();
+
+        let newInvoice: Invoice | null = null;
+        if (invoicesData.success) {
+          const nextInvoices = invoicesData.invoices || [];
+          setInvoices(nextInvoices);
+          newInvoice = nextInvoices.find((i: Invoice) => i.id === data.invoiceId) || null;
+        }
+
         setShowInvoiceModal(false);
         setInvoiceOrderId('');
         setInvoiceDiscount('0');
@@ -182,11 +191,44 @@ export default function Dashboard({ token, user, setActiveTab }: DashboardProps)
         setInvoiceStatus('emitida');
         setInvoiceNotes('');
         fetchDashboardData();
+
+        if (newInvoice) {
+          await handleViewInvoice(newInvoice);
+        }
       } else {
         setInvoiceError(data.message || 'Error al emitir factura');
       }
     } catch (err: any) {
       setInvoiceError(err.message || 'Error de conexión');
+    }
+  };
+
+  const handleViewInvoice = async (invoice: Invoice) => {
+    const relatedOrder = orders.find((o) => o.id === invoice.order_id) || null;
+
+    if (relatedOrder?.items && relatedOrder.items.length > 0) {
+      setViewingInvoice(invoice);
+      setViewingOrder(relatedOrder);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/orders/${invoice.order_id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+
+      if (data.success && data.order) {
+        setViewingInvoice(invoice);
+        setViewingOrder(data.order);
+      } else {
+        setViewingInvoice(invoice);
+        setViewingOrder(relatedOrder);
+      }
+    } catch (err) {
+      console.error('Error loading order for invoice preview:', err);
+      setViewingInvoice(invoice);
+      setViewingOrder(relatedOrder);
     }
   };
 
@@ -240,16 +282,6 @@ export default function Dashboard({ token, user, setActiveTab }: DashboardProps)
 
   return (
     <div className="space-y-8 pb-16 print:p-0 print:space-y-4" id="dashboard-tab">
-      {/* Toast Notification */}
-      {toast && (
-        <div className={`fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg text-sm font-semibold animate-bounce ${
-          toast.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'
-        }`}>
-          {toast.type === 'success' ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <ShieldAlert className="h-5 w-5 text-rose-600" />}
-          {toast.message}
-        </div>
-      )}
-
       {/* Corporate Dashboard Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
         <div>
@@ -494,6 +526,57 @@ export default function Dashboard({ token, user, setActiveTab }: DashboardProps)
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-2xl border border-slate-150 shadow-sm space-y-4 print:hidden">
+        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+          <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+            <FileText className="text-indigo-600 h-5 w-5" /> Facturas Emitidas
+          </h3>
+          <span className="text-xs font-semibold text-slate-400">VISTA RÁPIDA</span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
+                <th className="py-2">#</th>
+                <th className="py-2">Factura</th>
+                <th className="py-2">Pedido</th>
+                <th className="py-2">Tipo</th>
+                <th className="py-2 text-right">Total</th>
+                <th className="py-2 text-right">Acción</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50 font-medium">
+              {invoices.length > 0 ? invoices.slice(0, 8).map((invoice) => (
+                <tr key={invoice.id} className="hover:bg-slate-50">
+                  <td className="py-2.5 font-mono text-slate-400">#{invoice.id}</td>
+                  <td className="py-2.5 font-semibold text-slate-700">{invoice.invoice_number}</td>
+                  <td className="py-2.5 text-slate-600">Pedido #{invoice.order_id}</td>
+                  <td className="py-2.5">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold ${invoice.invoice_type === 'credito_fiscal' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700'}`}>
+                      {invoice.invoice_type === 'credito_fiscal' ? 'Crédito Fiscal' : 'Consumidor Final'}
+                    </span>
+                  </td>
+                  <td className="py-2.5 text-right text-indigo-600 font-bold">${Number(invoice.total).toFixed(2)}</td>
+                  <td className="py-2.5 text-right">
+                    <button
+                      onClick={() => handleViewInvoice(invoice)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-[11px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                    >
+                      <FileText className="h-3.5 w-3.5" /> Ver
+                    </button>
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-slate-400">No hay facturas emitidas todavía</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -900,6 +983,17 @@ export default function Dashboard({ token, user, setActiveTab }: DashboardProps)
             </form>
           </motion.div>
         </div>
+      )}
+      {/* Viewer for Realistic Invoice Document */}
+      {viewingInvoice && (
+        <InvoiceDocument 
+          invoice={viewingInvoice} 
+          order={viewingOrder} 
+          onClose={() => {
+            setViewingInvoice(null);
+            setViewingOrder(null);
+          }} 
+        />
       )}
     </div>
   );

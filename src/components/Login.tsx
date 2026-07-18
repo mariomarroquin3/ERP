@@ -135,11 +135,11 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </h4>
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => quickLogin('admin@maquila.com', 'admin123')}
+                onClick={() => quickLogin('mario.marroquin.2007@gmail.com', 'admin123')}
                 className="text-left px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-xs font-medium text-slate-700 flex flex-col justify-center"
               >
                 <span className="font-semibold text-indigo-600">Admin</span>
-                <span className="text-[10px] text-slate-400">admin@maquila.com</span>
+                <span className="text-[10px] text-slate-400">mario.marroquin.2007@gmail</span>
               </button>
               <button
                 onClick={() => quickLogin('tienda@maquila.com', 'tienda123')}

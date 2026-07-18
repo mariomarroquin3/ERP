@@ -22,6 +22,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { Order, Payment, Invoice, ProductionTask } from '../types';
+import { InvoiceDocument } from './InvoiceDocument';
 
 interface OrderDetailsTimelineProps {
   order: Order;
@@ -62,6 +63,9 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
   const [expandedTrack, setExpandedTrack] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
+  const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
 
   // Form states for Financial actions
   const [showAddPayment, setShowAddPayment] = useState(false);
@@ -273,6 +277,18 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
         setInvoiceStatus('emitida');
         setInvoiceNotes('');
         handleDataChangeSuccess('Factura electrónica emitida exitosamente.');
+
+        const invoicesRes = await fetch(`/api/invoices?order_id=${localOrder.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const invoicesData = await invoicesRes.json();
+        if (invoicesData.success) {
+          const latestInvoice = (invoicesData.invoices || []).find((inv: Invoice) => inv.id === data.invoiceId) || (invoicesData.invoices || [])[0] || null;
+          if (latestInvoice) {
+            setViewingInvoice(latestInvoice);
+            setViewingOrder(localOrder);
+          }
+        }
       } else {
         setErrorMessage(data.message || 'Error al emitir factura.');
       }
@@ -281,6 +297,11 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
     } finally {
       setSubmittingInvoice(false);
     }
+  };
+
+  const handleViewInvoice = async (invoice: Invoice) => {
+    setViewingInvoice(invoice);
+    setViewingOrder(localOrder);
   };
 
   const handleUpdateTaskStatus = async (taskId: number) => {
@@ -756,14 +777,23 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                     {invoices.length > 0 ? (
                       <div className="space-y-1">
                         {invoices.map((inv) => (
-                          <div key={inv.id} className="flex justify-between items-center text-[10px] bg-indigo-50/40 p-2.5 rounded-lg border border-indigo-100">
+                          <div key={inv.id} className="flex justify-between items-center gap-2 text-[10px] bg-indigo-50/40 p-2.5 rounded-lg border border-indigo-100">
                             <div>
                               <strong className="text-indigo-900 block font-mono font-bold">{inv.invoice_number}</strong>
                               <span className="text-[9px] text-indigo-700 capitalize font-medium">Tipo: {inv.invoice_type.replace('_', ' ')}</span>
                             </div>
-                            <span className="font-bold text-indigo-900 font-mono text-xs">
-                              ${parseFloat(inv.total as any).toFixed(2)}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-indigo-900 font-mono text-xs">
+                                ${parseFloat(inv.total as any).toFixed(2)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleViewInvoice(inv)}
+                                className="rounded-md border border-indigo-200 bg-white px-2 py-1 text-[9px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                              >
+                                Ver Factura
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -777,6 +807,17 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
             )}
           </div>
         </div>
+
+        {viewingInvoice && (
+          <InvoiceDocument
+            invoice={viewingInvoice}
+            order={viewingOrder}
+            onClose={() => {
+              setViewingInvoice(null);
+              setViewingOrder(null);
+            }}
+          />
+        )}
 
         {/* ======================================================== */}
         {/* PHASE 2: WORKSHOP PRODUCTION PROGRESSION */}

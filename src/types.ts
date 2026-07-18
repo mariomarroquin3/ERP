@@ -4,6 +4,12 @@ export interface User {
   email: string;
   role: 'admin' | 'tienda' | 'taller' | 'cliente' | 'operario';
   permissions?: string[];
+  nit?: string;
+  nrc?: string;
+  nombre_comercial?: string;
+  actividad_economica?: string;
+  direccion?: string;
+  telefono?: string;
 }
 
 export interface Product {
@@ -167,8 +173,26 @@ export interface Invoice {
   id: number;
   order_id: number;
   invoice_number: string;
+  codigo_generacion?: string;
+  numero_control?: string;
+  sello_recepcion?: string;
+  fecha_hora_generacion?: string;
+  receptor_nombre?: string;
+  receptor_nit?: string;
+  receptor_nrc?: string;
+  receptor_actividad_economica?: string;
+  receptor_direccion?: string;
+  receptor_telefono?: string;
+  receptor_correo?: string;
+  receptor_nombre_comercial?: string;
   subtotal: number;
   tax: number;
+  ventas_no_sujetas?: number;
+  ventas_exentas?: number;
+  ventas_gravadas?: number;
+  iva_retenido?: number;
+  iva_percibido?: number;
+  retencion_renta?: number;
   discount: number;
   total: number;
   created_at: string;

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, Size, WorkCalendar } from '../types';
+import { toast } from 'sonner';
 
 interface AdminPanelProps {
   token: string;
@@ -84,6 +85,12 @@ export default function AdminPanel({ token }: AdminPanelProps) {
   const [newPassword, setNewPassword] = useState('');
   const [newRoleId, setNewRoleId] = useState('4'); // Default 'cliente'
   const [newUserIsActive, setNewUserIsActive] = useState(true);
+  const [newNit, setNewNit] = useState('');
+  const [newNrc, setNewNrc] = useState('');
+  const [newActividadEconomica, setNewActividadEconomica] = useState('');
+  const [newDireccion, setNewDireccion] = useState('');
+  const [newTelefono, setNewTelefono] = useState('');
+  const [newNombreComercial, setNewNombreComercial] = useState('');
   const [creatingUser, setCreatingUser] = useState(false);
   const [accessError, setAccessError] = useState('');
 
@@ -127,7 +134,13 @@ export default function AdminPanel({ token }: AdminPanelProps) {
           email: newEmail,
           password: newPassword,
           role_id: parseInt(newRoleId, 10),
-          is_active: newUserIsActive
+          is_active: newUserIsActive,
+          nit: newRoleId === '4' ? newNit : undefined,
+          nrc: newRoleId === '4' ? newNrc : undefined,
+          actividad_economica: newRoleId === '4' ? newActividadEconomica : undefined,
+          direccion: newRoleId === '4' ? newDireccion : undefined,
+          telefono: newRoleId === '4' ? newTelefono : undefined,
+          nombre_comercial: newRoleId === '4' ? newNombreComercial : undefined
         })
       });
       const data = await res.json();
@@ -140,6 +153,12 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         setNewPassword('');
         setNewRoleId('4');
         setNewUserIsActive(true);
+        setNewNit('');
+        setNewNrc('');
+        setNewActividadEconomica('');
+        setNewDireccion('');
+        setNewTelefono('');
+        setNewNombreComercial('');
         // Refresh users list
         fetchAccessData();
         setTimeout(() => setSuccessMsg(''), 5000);
@@ -213,7 +232,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
           }
           return p;
         }));
-        alert(data.message || 'Error al actualizar permiso');
+        toast.error(data.message || 'Error al actualizar permiso');
       }
     } catch (err) {
       console.error('Error toggling permission:', err);
@@ -415,7 +434,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         setNewAttrName('');
         setNewAttrValues('');
         setNewAttrRequired(false);
-        alert('Atributo de catálogo agregado con éxito!');
+        toast.success('Atributo de catálogo agregado con éxito!');
       }
     } catch (err) {
       console.error('Error adding attribute template:', err);
@@ -442,7 +461,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         setShowSizeModal(null);
         setNewSizeId('');
         setNewSizePrice('0');
-        alert('Asociación de talla realizada con éxito!');
+        toast.success('Asociación de talla realizada con éxito!');
       }
     } catch (err) {
       console.error('Error linking product size:', err);
@@ -522,9 +541,9 @@ export default function AdminPanel({ token }: AdminPanelProps) {
       if (data.success) {
         setEditingAttrId(null);
         handleOpenEditProduct(editingProduct);
-        alert('Atributo de catálogo y sus valores guardados exitosamente!');
+        toast.success('Atributo de catálogo y sus valores guardados exitosamente!');
       } else {
-        alert(data.message || 'Error al guardar atributo');
+        toast.error(data.message || 'Error al guardar atributo');
       }
     } catch (err) {
       console.error('Error saving attribute edit:', err);
@@ -554,10 +573,10 @@ export default function AdminPanel({ token }: AdminPanelProps) {
       });
       const data = await res.json();
       if (data.success) {
-        alert('Tallas del producto actualizadas con éxito!');
+        toast.success('Tallas del producto actualizadas con éxito!');
         handleOpenEditProduct(editingProduct);
       } else {
-        alert(data.message || 'Error al guardar tallas');
+        toast.error(data.message || 'Error al guardar tallas');
       }
     } catch (err) {
       console.error('Error saving product sizes:', err);
@@ -1493,7 +1512,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                 </button>
               </div>
 
-              <form onSubmit={handleCreateUser} className="p-6 space-y-4">
+              <form onSubmit={handleCreateUser} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
                 {accessError && (
                   <div className="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
                     <AlertCircle className="h-4.5 w-4.5 text-rose-600 shrink-0" />
@@ -1550,6 +1569,40 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     <option value="4">Cliente con Cuenta (Cliente)</option>
                   </select>
                 </div>
+
+                {newRoleId === '4' && (
+                  <div className="pt-2 pb-1 border-t border-slate-100 mt-2">
+                    <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3">Datos Fiscales (Para Facturación DTE)</h4>
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">NIT</label>
+                        <input type="text" value={newNit} onChange={(e) => setNewNit(e.target.value)} placeholder="0000-000000-000-0" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">NRC</label>
+                        <input type="text" value={newNrc} onChange={(e) => setNewNrc(e.target.value)} placeholder="123456-7" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                      </div>
+                    </div>
+                    <div className="space-y-1 mb-3">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Actividad Económica</label>
+                      <input type="text" value={newActividadEconomica} onChange={(e) => setNewActividadEconomica(e.target.value)} placeholder="Ej: Venta al por menor" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                    </div>
+                    <div className="space-y-1 mb-3">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Nombre Comercial</label>
+                      <input type="text" value={newNombreComercial} onChange={(e) => setNewNombreComercial(e.target.value)} placeholder="Nombre del negocio (opcional)" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Teléfono</label>
+                        <input type="text" value={newTelefono} onChange={(e) => setNewTelefono(e.target.value)} placeholder="0000-0000" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Dirección</label>
+                        <input type="text" value={newDireccion} onChange={(e) => setNewDireccion(e.target.value)} placeholder="San Salvador" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-xs font-semibold text-slate-600">¿Usuario Activo?</span>

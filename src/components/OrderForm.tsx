@@ -116,7 +116,6 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formError, setFormError] = useState('');
-  const [presetFileUrl, setPresetFileUrl] = useState('');
 
   // Sample remote embroidery files for easy testing
   const presetsLogos = [
@@ -272,7 +271,6 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
   const addAttachment = (url: string) => {
     if (!url) return;
     setAttachedFiles(prev => [...prev, { file_url: url, file_type: 'image/jpeg' }]);
-    setPresetFileUrl('');
   };
 
   const removeAttachment = (index: number) => {
@@ -975,22 +973,35 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                     </h4>
                     
                     <div className="space-y-3">
-                      {/* Presets and manual url input */}
+                      {/* Local image upload */}
                       <div className="flex gap-2">
                         <input
-                          type="text"
-                          value={presetFileUrl}
-                          onChange={(e) => setPresetFileUrl(e.target.value)}
-                          placeholder="Ingrese URL de imagen (ej. logo_bordado.jpg)"
-                          className="block grow py-2 px-3 border border-slate-250 rounded-xl text-xs"
+                          type="file"
+                          accept="image/*"
+                          id="image-upload"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              if (!file.type.startsWith('image/')) return;
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                if (event.target?.result) {
+                                  setAttachedFiles(prev => [...prev, { file_url: event.target.result as string, file_type: file.type }]);
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                            e.target.value = ''; // Reset input to allow selecting the same file again
+                          }}
                         />
-                        <button
-                          type="button"
-                          onClick={() => { addAttachment(presetFileUrl); }}
-                          className="bg-indigo-600 text-white rounded-xl px-3 text-xs font-bold hover:bg-indigo-700 shrink-0"
+                        <label
+                          htmlFor="image-upload"
+                          className="bg-indigo-600 text-white rounded-xl px-4 py-2 text-xs font-bold hover:bg-indigo-700 cursor-pointer flex items-center justify-center w-full transition"
                         >
-                          Adjuntar
-                        </button>
+                          <UploadCloud className="h-4 w-4 mr-2" />
+                          Adjuntar Imagen
+                        </label>
                       </div>
 
                       {/* Presets quick select */}
