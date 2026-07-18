@@ -54,7 +54,8 @@ import {
   updateRolePermission,
   createUser,
   updateUserStatus,
-  extendWorkCalendar
+  extendWorkCalendar,
+  repairWorkCalendarDefaultDays
 } from './src/db/queries';
 import { MySqlCustomError } from './src/db/db';
 
@@ -1029,15 +1030,17 @@ app.use((err: any, req: any, res: any, next: any) => {
 // ==========================================
 async function start() {
   // Extend work calendar immediately for the next 60 days
-  extendWorkCalendar(60)
-    .then(() => console.log('Work calendar extended successfully on startup.'))
+  repairWorkCalendarDefaultDays()
+    .then(() => extendWorkCalendar(60))
+    .then(() => console.log('Work calendar repaired and extended successfully on startup.'))
     .catch((err) => console.error('Failed to extend work calendar on startup:', err));
 
   // Schedule daily work calendar extension at midnight
   cron.schedule('0 0 * * *', () => {
     console.log('Running scheduled daily work calendar extension...');
-    extendWorkCalendar(60)
-      .then(() => console.log('Work calendar extended successfully by cron job.'))
+    repairWorkCalendarDefaultDays()
+      .then(() => extendWorkCalendar(60))
+      .then(() => console.log('Work calendar repaired and extended successfully by cron job.'))
       .catch((err) => console.error('Cron job work calendar extension failed:', err));
   });
 
