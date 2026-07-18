@@ -118,10 +118,36 @@ export default function AdminPanel({ token }: AdminPanelProps) {
     }
   };
 
+  const formatNumericIdentifier = (value: string, groups: number[]): string => {
+    const digits = value.replace(/\D/g, '').slice(0, groups.reduce((total, group) => total + group, 0));
+    const formatted: string[] = [];
+    let offset = 0;
+    for (const group of groups) {
+      const part = digits.slice(offset, offset + group);
+      if (!part) break;
+      formatted.push(part);
+      offset += group;
+    }
+    return formatted.join('-');
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCreatingUser(true);
     setAccessError('');
+
+    if (newRoleId === '4') {
+      const invalidFields: string[] = [];
+      if (!/^\d{4}-\d{6}-\d{3}-\d$/.test(newNit)) invalidFields.push('NIT (xxxx-xxxxxx-xxx-x)');
+      if (!/^\d{7}-\d$/.test(newNrc)) invalidFields.push('NRC (xxxxxxx-x)');
+      if (!/^\d{4}-\d{4}$/.test(newTelefono)) invalidFields.push('teléfono (xxxx-xxxx)');
+
+      if (invalidFields.length > 0) {
+        setAccessError(`Complete correctamente: ${invalidFields.join(', ')}.`);
+        return;
+      }
+    }
+
+    setCreatingUser(true);
     try {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
@@ -1576,11 +1602,11 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     <div className="grid grid-cols-2 gap-3 mb-3">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">NIT</label>
-                        <input type="text" value={newNit} onChange={(e) => setNewNit(e.target.value)} placeholder="0000-000000-000-0" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                        <input type="text" required inputMode="numeric" autoComplete="off" maxLength={17} value={newNit} onChange={(e) => setNewNit(formatNumericIdentifier(e.target.value, [4, 6, 3, 1]))} placeholder="0000-000000-000-0" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">NRC</label>
-                        <input type="text" value={newNrc} onChange={(e) => setNewNrc(e.target.value)} placeholder="123456-7" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                        <input type="text" required inputMode="numeric" autoComplete="off" maxLength={9} value={newNrc} onChange={(e) => setNewNrc(formatNumericIdentifier(e.target.value, [7, 1]))} placeholder="0000000-0" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
                       </div>
                     </div>
                     <div className="space-y-1 mb-3">
@@ -1594,7 +1620,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Teléfono</label>
-                        <input type="text" value={newTelefono} onChange={(e) => setNewTelefono(e.target.value)} placeholder="0000-0000" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                        <input type="text" required inputMode="numeric" autoComplete="tel" maxLength={9} value={newTelefono} onChange={(e) => setNewTelefono(formatNumericIdentifier(e.target.value, [4, 4]))} placeholder="0000-0000" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Dirección</label>
