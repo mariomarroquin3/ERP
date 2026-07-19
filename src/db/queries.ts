@@ -2504,111 +2504,126 @@ export async function updateUserStatus(id: number, isActive: boolean, userName: 
   );
 }
 
+const DEFAULT_SUNDAY_NOTE = 'Domingo - Cerrado';
+
+function calendarDateFromValue(value: string | Date): Date {
+  const dateText = value instanceof Date
+    ? value.toISOString().slice(0, 10)
+    : String(value).slice(0, 10);
+  const [year, month, day] = dateText.split('-').map(Number);
+  return new Date(year, month - 1, day, 12);
+}
+
+function formatCalendarDate(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/** Repairs only calendar rows created by the former timezone bug. */
+export async function repairWorkCalendarDefaultDays(): Promise<void> {
+  const pool = await getDbPool();
+  if (pool) {
+    await pool.query(
+      `UPDATE work_calendar
+       SET is_working_day = IF(DAYOFWEEK(work_date) = 1, 0, 1),
+           notes = IF(DAYOFWEEK(work_date) = 1, ?, NULL)
+       WHERE notes = ?
+         AND ((DAYOFWEEK(work_date) = 1 AND is_working_day <> 0)
+           OR (DAYOFWEEK(work_date) <> 1 AND is_working_day <> 1))`,
+      [DEFAULT_SUNDAY_NOTE, DEFAULT_SUNDAY_NOTE]
+    );
+    return;
+  }
+
+  for (const entry of mockDb.workCalendar) {
+    if (entry.notes !== DEFAULT_SUNDAY_NOTE) continue;
+    const isSunday = calendarDateFromValue(entry.work_date).getDay() === 0;
+    entry.is_working_day = !isSunday;
+    entry.notes = isSunday ? DEFAULT_SUNDAY_NOTE : undefined;
+  }
+}
+
 export async function extendWorkCalendar(daysAhead: number): Promise<void> {
   const pool = await getDbPool();
-  const today = new Date();
-  
-  // Calculate the target end date: today + daysAhead
+  const today = calendarDateFromValue(formatCalendarDate(new Date()));
   const targetEnd = new Date(today);
-  targetEnd.setDate(today.getDate() + daysAhead);
+  targetEnd.setDate(targetEnd.getDate() + daysAhead);
 
-  // Default starting point: today - 5 days
+  // Default starting point: today - 5 days.
   let start = new Date(today);
-  start.setDate(today.getDate() - 5);
+  start.setDate(start.getDate() - 5);
 
   if (pool) {
-    try {
-      const [rows]: any = await pool.query('SELECT MAX(work_date) as max_date FROM work_calendar');
-      const maxDate = rows[0]?.max_date;
-      if (maxDate) {
-        const maxDateObj = new Date(maxDate);
-        if (maxDateObj >= start) {
-          start = new Date(maxDateObj);
-          start.setDate(start.getDate() + 1);
-        }
-      }
-
-      // Loop day-by-day and insert up to targetEnd
-      const conn = await pool.getConnection();
-      try {
-        await conn.beginTransaction();
-        const current = new Date(start);
-        while (current <= targetEnd) {
-          const dateStr = current.toISOString().split('T')[0];
-          const isWorkingDay = current.getDay() !== 0; // Sunday is 0
-          const notes = isWorkingDay ? null : 'Domingo - Cerrado';
-
-          for (let stageId = 1; stageId <= 10; stageId++) {
-            const capacity = [2, 6].includes(stageId) ? 200 : 500;
-            await conn.query(
-              `INSERT INTO work_calendar (work_date, stage_id, max_capacity_points, is_working_day, notes)
-               VALUES (?, ?, ?, ?, ?)
-               ON DUPLICATE KEY UPDATE 
-                 max_capacity_points = VALUES(max_capacity_points),
-                 is_working_day = VALUES(is_working_day),
-                 notes = VALUES(notes)`,
-              [dateStr, stageId, capacity, isWorkingDay ? 1 : 0, notes]
-            );
-          }
-          current.setDate(current.getDate() + 1);
-        }
-        await conn.commit();
-      } catch (err) {
-        await conn.rollback();
-        throw err;
-      } finally {
-        conn.release();
-      }
-    } catch (err) {
-      console.error('Failed to extend MySQL work calendar:', err);
-    }
-  } else {
-    // Sandbox / Mock
-    let maxDateStr = '';
-    if (mockDb.workCalendar.length > 0) {
-      const sorted = [...mockDb.workCalendar].sort((a, b) => b.work_date.localeCompare(a.work_date));
-      maxDateStr = sorted[0].work_date;
-    }
-
-    if (maxDateStr) {
-      const maxDateObj = new Date(maxDateStr);
+    const [rows]: any = await pool.query('SELECT MAX(work_date) as max_date FROM work_calendar');
+    const maxDate = rows[0]?.max_date;
+    if (maxDate) {
+      const maxDateObj = calendarDateFromValue(maxDate);
       if (maxDateObj >= start) {
         start = new Date(maxDateObj);
         start.setDate(start.getDate() + 1);
       }
     }
 
-    const current = new Date(start);
-    while (current <= targetEnd) {
-      const dateStr = current.toISOString().split('T')[0];
-      const isWorkingDay = current.getDay() !== 0;
-      const notes = isWorkingDay ? undefined : 'Domingo - Cerrado';
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const current = new Date(start);
+      while (current <= targetEnd) {
+        const dateStr = formatCalendarDate(current);
+        const isWorkingDay = current.getDay() !== 0;
+        const notes = isWorkingDay ? null : DEFAULT_SUNDAY_NOTE;
 
-      for (let stageId = 1; stageId <= 10; stageId++) {
-        const capacity = [2, 6].includes(stageId) ? 200 : 500;
-        
-        const matchIdx = mockDb.workCalendar.findIndex(
-          (c) => c.work_date === dateStr && c.stage_id === stageId
-        );
-        if (matchIdx !== -1) {
-          // Update
-          mockDb.workCalendar[matchIdx].max_capacity_points = capacity;
-          mockDb.workCalendar[matchIdx].is_working_day = isWorkingDay;
-          mockDb.workCalendar[matchIdx].notes = notes;
-        } else {
-          // Push new
-          mockDb.workCalendar.push({
-            id: mockDb.workCalendar.length + 1,
-            work_date: dateStr,
-            stage_id: stageId,
-            max_capacity_points: capacity,
-            is_working_day: isWorkingDay,
-            notes: notes,
-          });
+        for (let stageId = 1; stageId <= 10; stageId++) {
+          const capacity = [2, 6].includes(stageId) ? 200 : 500;
+          // Do not overwrite calendar entries configured manually by an administrator.
+          await conn.query(
+            `INSERT IGNORE INTO work_calendar (work_date, stage_id, max_capacity_points, is_working_day, notes)
+             VALUES (?, ?, ?, ?, ?)`,
+            [dateStr, stageId, capacity, isWorkingDay ? 1 : 0, notes]
+          );
         }
+        current.setDate(current.getDate() + 1);
       }
-      current.setDate(current.getDate() + 1);
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
     }
+    return;
+  }
+
+  let maxDateStr = '';
+  if (mockDb.workCalendar.length > 0) {
+    maxDateStr = [...mockDb.workCalendar]
+      .sort((a, b) => b.work_date.localeCompare(a.work_date))[0].work_date;
+  }
+  if (maxDateStr) {
+    const maxDateObj = calendarDateFromValue(maxDateStr);
+    if (maxDateObj >= start) {
+      start = new Date(maxDateObj);
+      start.setDate(start.getDate() + 1);
+    }
+  }
+
+  const current = new Date(start);
+  while (current <= targetEnd) {
+    const dateStr = formatCalendarDate(current);
+    const isWorkingDay = current.getDay() !== 0;
+    const exists = mockDb.workCalendar.some((c) => c.work_date === dateStr);
+    if (!exists) {
+      for (let stageId = 1; stageId <= 10; stageId++) {
+        mockDb.workCalendar.push({
+          id: mockDb.workCalendar.length + 1,
+          work_date: dateStr,
+          stage_id: stageId,
+          max_capacity_points: [2, 6].includes(stageId) ? 200 : 500,
+          is_working_day: isWorkingDay,
+          notes: isWorkingDay ? undefined : DEFAULT_SUNDAY_NOTE,
+        });
+      }
+    }
+    current.setDate(current.getDate() + 1);
   }
 }
 

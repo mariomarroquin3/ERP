@@ -54,7 +54,8 @@ import {
   updateRolePermission,
   createUser,
   updateUserStatus,
-  extendWorkCalendar
+  extendWorkCalendar,
+  repairWorkCalendarDefaultDays
 } from './src/db/queries';
 import { MySqlCustomError } from './src/db/db';
 
@@ -697,6 +698,18 @@ app.post('/api/admin/users', authenticateToken, requireRole(['admin']), async (r
       return res.status(400).json({ success: false, message: 'El rol de usuario seleccionado no existe en el sistema.' });
     }
 
+    if (rId === 4) {
+      if (!/^\d{4}-\d{6}-\d{3}-\d$/.test(nit || '')) {
+        return res.status(400).json({ success: false, message: 'El NIT debe tener el formato xxxx-xxxxxx-xxx-x.' });
+      }
+      if (!/^\d{7}-\d$/.test(nrc || '')) {
+        return res.status(400).json({ success: false, message: 'El NRC debe tener el formato xxxxxxx-x.' });
+      }
+      if (!/^\d{4}-\d{4}$/.test(telefono || '')) {
+        return res.status(400).json({ success: false, message: 'El teléfono debe tener el formato xxxx-xxxx.' });
+      }
+    }
+
     const existingUser = await getUserByEmail(email.trim());
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'El correo electrónico ya está registrado en el sistema.' });
@@ -1029,15 +1042,17 @@ app.use((err: any, req: any, res: any, next: any) => {
 // ==========================================
 async function start() {
   // Extend work calendar immediately for the next 60 days
-  extendWorkCalendar(60)
-    .then(() => console.log('Work calendar extended successfully on startup.'))
+  repairWorkCalendarDefaultDays()
+    .then(() => extendWorkCalendar(60))
+    .then(() => console.log('Work calendar repaired and extended successfully on startup.'))
     .catch((err) => console.error('Failed to extend work calendar on startup:', err));
 
   // Schedule daily work calendar extension at midnight
   cron.schedule('0 0 * * *', () => {
     console.log('Running scheduled daily work calendar extension...');
-    extendWorkCalendar(60)
-      .then(() => console.log('Work calendar extended successfully by cron job.'))
+    repairWorkCalendarDefaultDays()
+      .then(() => extendWorkCalendar(60))
+      .then(() => console.log('Work calendar repaired and extended successfully by cron job.'))
       .catch((err) => console.error('Cron job work calendar extension failed:', err));
   });
 
