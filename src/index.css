@@ -6,13 +6,15 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   body {
-    @apply font-sans text-slate-900 bg-slate-50 antialiased;
+    @apply font-sans text-slate-900 bg-slate-50 antialiased dark:text-slate-100 dark:bg-slate-950;
   }
   
   /* Focus outlines for accessibility */
   input:focus, select:focus, textarea:focus, button:focus-visible {
-    @apply outline-hidden ring-2 ring-indigo-600 ring-offset-2;
+    @apply outline-hidden ring-2 ring-indigo-600 ring-offset-2 dark:ring-offset-slate-950;
   }
 }

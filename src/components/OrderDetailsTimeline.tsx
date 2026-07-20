@@ -418,25 +418,25 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
       case 2: return 'bg-indigo-50 text-indigo-700 border-indigo-200';
       case 3: return 'bg-emerald-50 text-emerald-800 border-emerald-200';
       case 4: return 'bg-rose-50 text-rose-700 border-rose-200';
-      default: return 'bg-slate-150 text-slate-600';
+      default: return 'bg-slate-200 text-slate-600';
     }
   };
 
   return (
-    <div className="bg-white border border-slate-150 rounded-3xl p-6 space-y-6 shadow-sm" id="order-details-timeline">
+    <div className="bg-white border border-slate-200 rounded-3xl p-6 space-y-6 shadow-sm dark:bg-slate-800 dark:border-slate-700" id="order-details-timeline">
       
       {/* Header and Sync Metadata */}
       <div className="flex justify-between items-center border-b border-slate-100 pb-4">
         <div>
-          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-            <Clock className="h-4.5 w-4.5 text-indigo-600 animate-pulse" />
+          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 dark:text-slate-200">
+            <Clock className="h-4.5 w-4.5 text-indigo-600 animate-pulse dark:text-indigo-400" />
             Flujo de Control Operativo
           </h3>
-          <p className="text-[11px] text-slate-500 mt-0.5">Seguimiento por bloques de pago, taller y despacho.</p>
+          <p className="text-[11px] text-slate-500 mt-0.5 dark:text-slate-400">Seguimiento por bloques de pago, taller y despacho.</p>
         </div>
         <div className="flex items-center gap-2">
           {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />}
-          <span className="text-[10px] font-mono font-bold bg-slate-50 px-2.5 py-1 border border-slate-200 rounded-xl text-slate-500 uppercase">
+          <span className="text-[10px] font-mono font-bold bg-slate-50 px-2.5 py-1 border border-slate-200 rounded-xl text-slate-500 uppercase dark:text-slate-400 dark:bg-slate-800/50 dark:border-slate-700">
             Rol: {activeRole}
           </span>
         </div>
@@ -449,7 +449,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="p-3.5 bg-rose-50 border border-rose-150 rounded-2xl flex items-start gap-2.5 text-rose-800 text-xs font-semibold leading-normal"
+            className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 text-rose-800 text-xs font-semibold leading-normal"
           >
             <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
             <span>{errorMessage}</span>
@@ -460,9 +460,9 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="p-3.5 bg-emerald-50 border border-emerald-150 rounded-2xl flex items-start gap-2.5 text-emerald-800 text-xs font-semibold leading-normal animate-pulse"
+            className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-2.5 text-emerald-800 text-xs font-semibold leading-normal animate-pulse dark:text-emerald-300 dark:bg-emerald-900/20"
           >
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5 dark:text-emerald-400" />
             <span>{successMessage}</span>
           </motion.div>
         )}
@@ -472,7 +472,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
       <div className="relative pl-7 space-y-8">
         
         {/* Long connecting track line */}
-        <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-slate-100" />
+        <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-slate-100 dark:bg-slate-800" />
 
         {/* ======================================================== */}
         {/* PHASE 1: FINANCIAL & PAYMENT PROGRESSION */}
@@ -498,7 +498,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
             >
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight group-hover:text-indigo-600 transition">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight group-hover:text-indigo-600 transition dark:text-slate-200">
                     Paso 1: Pago y Facturación
                   </h4>
                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
@@ -511,7 +511,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                     {isFullyPaid ? 'SALDADO' : totalPaid > 0 ? 'ABONADO PARCIAL' : 'PENDIENTE DE PAGO'}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
                   Control de anticipos, abonos y emisión de factura de maquila.
                 </p>
               </div>
@@ -527,19 +527,19 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                 animate={{ opacity: 1, height: 'auto' }}
                 className="pt-2"
               >
-                <div className="bg-slate-50/50 border border-slate-150 rounded-2xl p-4 space-y-4">
+                <div className="bg-slate-50/50 border border-slate-200 rounded-2xl p-4 space-y-4 dark:border-slate-700 dark:bg-slate-800/50">
                   
                   {/* Ledger Board Card */}
-                  <div className="grid grid-cols-3 gap-3 text-center bg-white border border-slate-150 p-3 rounded-xl shadow-2xs">
+                  <div className="grid grid-cols-3 gap-3 text-center bg-white border border-slate-200 p-3 rounded-xl shadow-2xs dark:bg-slate-800 dark:border-slate-700">
                     <div>
                       <span className="text-[9px] text-slate-400 block font-bold uppercase">Total del Pedido</span>
-                      <span className="text-xs font-bold font-mono text-slate-800">
+                      <span className="text-xs font-bold font-mono text-slate-800 dark:text-slate-200">
                         ${parseFloat(localOrder.total_price as any).toFixed(2)}
                       </span>
                     </div>
                     <div className="border-x border-slate-100">
                       <span className="text-[9px] text-slate-400 block font-bold uppercase">Monto Pagado</span>
-                      <span className="text-xs font-bold font-mono text-emerald-600">
+                      <span className="text-xs font-bold font-mono text-emerald-600 dark:text-emerald-400">
                         ${totalPaid.toFixed(2)}
                       </span>
                     </div>
@@ -559,7 +559,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                           setShowAddPayment(!showAddPayment);
                           setShowEmitInvoice(false);
                         }}
-                        className="inline-flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-[11px] font-bold px-3 py-1.5 rounded-xl transition"
+                        className="inline-flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-[11px] font-bold px-3 py-1.5 rounded-xl transition dark:text-indigo-300 dark:bg-indigo-900/20 dark:border-indigo-800"
                       >
                         <Plus className="h-3.5 w-3.5" />
                         Registrar Abono
@@ -569,7 +569,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                           setShowEmitInvoice(!showEmitInvoice);
                           setShowAddPayment(false);
                         }}
-                        className="inline-flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold px-3 py-1.5 rounded-xl transition"
+                        className="inline-flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold px-3 py-1.5 rounded-xl transition dark:text-slate-300 dark:bg-slate-800/50 dark:border-slate-700"
                       >
                         <FileText className="h-3.5 w-3.5" />
                         Emitir Factura
@@ -583,11 +583,11 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                       onSubmit={handleRegisterPayment}
                       initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-white border border-slate-200 p-3.5 rounded-xl space-y-3 shadow-2xs"
+                      className="bg-white border border-slate-200 p-3.5 rounded-xl space-y-3 shadow-2xs dark:bg-slate-800 dark:border-slate-700"
                     >
                       <div className="flex justify-between items-center border-b border-slate-100 pb-1.5">
-                        <h5 className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                          <Plus className="h-3.5 w-3.5 text-indigo-500" />
+                        <h5 className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1 dark:text-slate-300">
+                          <Plus className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-300" />
                           Registrar Nuevo Abono Físico
                         </h5>
                         <button 
@@ -609,7 +609,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                             value={paymentAmount} 
                             onChange={(e) => setPaymentAmount(e.target.value)}
                             placeholder={`Max $${remainingBalance.toFixed(2)}`}
-                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white focus:outline-indigo-500 text-slate-800"
+                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white focus:outline-indigo-500 text-slate-800 dark:text-slate-200 dark:bg-slate-800/50 dark:border-slate-700"
                             required
                           />
                         </div>
@@ -618,7 +618,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                           <select 
                             value={paymentMethod} 
                             onChange={(e: any) => setPaymentMethod(e.target.value)}
-                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white focus:outline-indigo-500 text-slate-800"
+                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white focus:outline-indigo-500 text-slate-800 dark:text-slate-200 dark:bg-slate-800/50 dark:border-slate-700"
                           >
                             <option value="efectivo">Efectivo</option>
                             <option value="tarjeta">Tarjeta de Crédito</option>
@@ -634,7 +634,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                           value={paymentNotes} 
                           onChange={(e) => setPaymentNotes(e.target.value)}
                           placeholder="Número de transferencia, recibo manual, etc."
-                          className="w-full text-xs font-medium bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white focus:outline-indigo-500 text-slate-800"
+                          className="w-full text-xs font-medium bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white focus:outline-indigo-500 text-slate-800 dark:text-slate-200 dark:bg-slate-800/50 dark:border-slate-700"
                         />
                       </div>
 
@@ -655,11 +655,11 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                       onSubmit={handleEmitInvoice}
                       initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-white border border-slate-200 p-3.5 rounded-xl space-y-3 shadow-2xs"
+                      className="bg-white border border-slate-200 p-3.5 rounded-xl space-y-3 shadow-2xs dark:bg-slate-800 dark:border-slate-700"
                     >
                       <div className="flex justify-between items-center border-b border-slate-100 pb-1.5">
-                        <h5 className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                          <FileText className="h-3.5 w-3.5 text-indigo-500" />
+                        <h5 className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1 dark:text-slate-300">
+                          <FileText className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-300" />
                           Emitir Factura de Hacienda
                         </h5>
                         <button 
@@ -677,7 +677,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                           <select 
                             value={invoiceType} 
                             onChange={(e: any) => setInvoiceType(e.target.value)}
-                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white focus:outline-indigo-500 text-slate-800"
+                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white focus:outline-indigo-500 text-slate-800 dark:text-slate-200 dark:bg-slate-800/50 dark:border-slate-700"
                           >
                             <option value="consumidor_final">Consumidor Final</option>
                             <option value="credito_fiscal">Crédito Fiscal</option>
@@ -691,7 +691,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                             value={invoiceDiscount} 
                             onChange={(e) => setInvoiceDiscount(e.target.value)}
                             placeholder="0.00"
-                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white text-slate-800"
+                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white text-slate-800 dark:text-slate-200 dark:bg-slate-800/50 dark:border-slate-700"
                           />
                         </div>
                         <div>
@@ -702,7 +702,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                             value={invoiceTax} 
                             onChange={(e) => setInvoiceTax(e.target.value)}
                             placeholder="0.00"
-                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white text-slate-800"
+                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white text-slate-800 dark:text-slate-200 dark:bg-slate-800/50 dark:border-slate-700"
                           />
                         </div>
                       </div>
@@ -713,7 +713,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                           <select 
                             value={invoiceStatus} 
                             onChange={(e: any) => setInvoiceStatus(e.target.value)}
-                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white focus:outline-indigo-500 text-slate-800"
+                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white focus:outline-indigo-500 text-slate-800 dark:text-slate-200 dark:bg-slate-800/50 dark:border-slate-700"
                           >
                             <option value="emitida">Emitida</option>
                             <option value="paga">Pagada</option>
@@ -727,13 +727,13 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                             value={invoiceNotes} 
                             onChange={(e) => setInvoiceNotes(e.target.value)}
                             placeholder="Notas opcionales..."
-                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white text-slate-800"
+                            className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg focus:bg-white text-slate-800 dark:text-slate-200 dark:bg-slate-800/50 dark:border-slate-700"
                           />
                         </div>
                       </div>
 
                       {activeRole !== 'admin' && (
-                        <p className="text-[9px] text-amber-600 font-medium">
+                        <p className="text-[9px] text-amber-600 font-medium dark:text-amber-400">
                           💡 Nota: Descuentos mayores al 15% del total del pedido requieren rol de Administrador.
                         </p>
                       )}
@@ -755,12 +755,12 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                     {payments.length > 0 ? (
                       <div className="space-y-1 max-h-32 overflow-y-auto">
                         {payments.map((p) => (
-                          <div key={p.id} className="flex justify-between items-center text-[10px] bg-white border border-slate-150 rounded-lg p-2">
+                          <div key={p.id} className="flex justify-between items-center text-[10px] bg-white border border-slate-200 rounded-lg p-2 dark:bg-slate-800 dark:border-slate-700">
                             <div>
-                              <strong className="text-slate-800 block">${parseFloat(p.amount as any).toFixed(2)}</strong>
+                              <strong className="text-slate-800 block dark:text-slate-200">${parseFloat(p.amount as any).toFixed(2)}</strong>
                               <span className="text-[9px] text-slate-400 font-mono capitalize">{p.payment_method} | {new Date(p.created_at).toLocaleDateString()}</span>
                             </div>
-                            <span className="text-[10px] bg-slate-50 px-2 py-0.5 border border-slate-150 rounded-lg text-slate-500 font-semibold max-w-[120px] truncate">
+                            <span className="text-[10px] bg-slate-50 px-2 py-0.5 border border-slate-200 rounded-lg text-slate-500 font-semibold max-w-[120px] truncate dark:text-slate-400 dark:bg-slate-800/50 dark:border-slate-700">
                               {p.registered_by_name || 'Sistema'}
                             </span>
                           </div>
@@ -772,24 +772,24 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                   </div>
 
                   {/* Issued Invoices Section */}
-                  <div className="space-y-1.5 border-t border-slate-150 pt-3">
+                  <div className="space-y-1.5 border-t border-slate-200 pt-3 dark:border-slate-700">
                     <span className="text-[9px] text-slate-400 block font-extrabold uppercase tracking-wider">Inmuebles y Facturación Emitida</span>
                     {invoices.length > 0 ? (
                       <div className="space-y-1">
                         {invoices.map((inv) => (
-                          <div key={inv.id} className="flex justify-between items-center gap-2 text-[10px] bg-indigo-50/40 p-2.5 rounded-lg border border-indigo-100">
+                          <div key={inv.id} className="flex justify-between items-center gap-2 text-[10px] bg-indigo-50/40 p-2.5 rounded-lg border border-indigo-100 dark:border-indigo-800">
                             <div>
-                              <strong className="text-indigo-900 block font-mono font-bold">{inv.invoice_number}</strong>
-                              <span className="text-[9px] text-indigo-700 capitalize font-medium">Tipo: {inv.invoice_type.replace('_', ' ')}</span>
+                              <strong className="text-indigo-900 block font-mono font-bold dark:text-indigo-100">{inv.invoice_number}</strong>
+                              <span className="text-[9px] text-indigo-700 capitalize font-medium dark:text-indigo-300">Tipo: {inv.invoice_type.replace('_', ' ')}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-indigo-900 font-mono text-xs">
+                              <span className="font-bold text-indigo-900 font-mono text-xs dark:text-indigo-100">
                                 ${parseFloat(inv.total as any).toFixed(2)}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => handleViewInvoice(inv)}
-                                className="rounded-md border border-indigo-200 bg-white px-2 py-1 text-[9px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                                className="rounded-md border border-indigo-200 bg-white px-2 py-1 text-[9px] font-semibold text-indigo-700 transition hover:bg-indigo-100 dark:text-indigo-300 dark:bg-slate-800 dark:border-indigo-800"
                               >
                                 Ver Factura
                               </button>
@@ -843,7 +843,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
             >
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight group-hover:text-indigo-600 transition">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight group-hover:text-indigo-600 transition dark:text-slate-200">
                     Paso 2: Avance de Confección en Taller
                   </h4>
                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
@@ -857,11 +857,11 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     Sincronización del taller físico y control de las 10 etapas de maquila.
                   </p>
                   {localOrder.status_id === 3 && (
-                    <span className="text-[10px] font-mono font-bold text-indigo-600">
+                    <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400">
                       ({productionProgressPercent}% completado)
                     </span>
                   )}
@@ -879,16 +879,16 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                 animate={{ opacity: 1, height: 'auto' }}
                 className="pt-2"
               >
-                <div className="bg-slate-50/50 border border-slate-150 rounded-2xl p-4 space-y-4">
+                <div className="bg-slate-50/50 border border-slate-200 rounded-2xl p-4 space-y-4 dark:border-slate-700 dark:bg-slate-800/50">
                   
                   {/* Progress Indicator for Active Confection */}
                   {localOrder.status_id === 3 && (
-                    <div className="space-y-1.5 bg-white border border-slate-150 p-3 rounded-xl shadow-2xs">
+                    <div className="space-y-1.5 bg-white border border-slate-200 p-3 rounded-xl shadow-2xs dark:bg-slate-800 dark:border-slate-700">
                       <div className="flex justify-between items-center text-[10px] font-bold">
-                        <span className="text-slate-500 uppercase">Progreso del Lote de Confección</span>
-                        <span className="text-indigo-600 font-mono font-bold">{completedTasks}/{totalTasks} Tareas Completadas</span>
+                        <span className="text-slate-500 uppercase dark:text-slate-400">Progreso del Lote de Confección</span>
+                        <span className="text-indigo-600 font-mono font-bold dark:text-indigo-400">{completedTasks}/{totalTasks} Tareas Completadas</span>
                       </div>
-                      <div className="w-full bg-slate-100 rounded-full h-2">
+                      <div className="w-full bg-slate-100 rounded-full h-2 dark:bg-slate-800">
                         <div 
                           className="bg-indigo-600 h-2 rounded-full transition-all duration-500" 
                           style={{ width: `${productionProgressPercent}%` }}
@@ -899,12 +899,12 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
 
                   {/* Transition Controller Actions (State Machine Enforcement) */}
                   {(activeRole === 'admin' || activeRole === 'tienda') && (
-                    <div className="bg-white border border-slate-150 p-3 rounded-xl shadow-2xs space-y-2">
+                    <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs space-y-2 dark:bg-slate-800 dark:border-slate-700">
                       <span className="text-[9px] text-slate-400 block font-bold uppercase">Estado Maestro del Pedido</span>
                       
                       {localOrder.status_id === 1 && (
                         <div className="space-y-2">
-                          <p className="text-[10px] text-slate-500 leading-normal">
+                          <p className="text-[10px] text-slate-500 leading-normal dark:text-slate-400">
                             ⚠️ Este pedido se encuentra como <strong>Pendiente de Confirmación</strong>. No se permite iniciar la línea de producción hasta que se confirme oficialmente.
                           </p>
                           <button
@@ -919,7 +919,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
 
                       {localOrder.status_id === 2 && (
                         <div className="space-y-2">
-                          <p className="text-[10px] text-slate-500 leading-normal">
+                          <p className="text-[10px] text-slate-500 leading-normal dark:text-slate-400">
                             El pedido ha sido <strong>Confirmado</strong>. El taller ya puede iniciar el corte físico de telas y confección.
                           </p>
                           <button
@@ -934,7 +934,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
 
                       {localOrder.status_id === 3 && (
                         <div className="space-y-2">
-                          <p className="text-[10px] text-slate-500 leading-normal">
+                          <p className="text-[10px] text-slate-500 leading-normal dark:text-slate-400">
                             El pedido se encuentra en <strong>Producción Activa</strong>. Al terminar el lote y pasar control de calidad, márquelo como listo.
                           </p>
                           <div className="flex gap-2">
@@ -950,8 +950,8 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                       )}
 
                       {localOrder.status_id >= 4 && (
-                        <p className="text-[10px] text-emerald-700 font-medium leading-normal flex items-center gap-1">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <p className="text-[10px] text-emerald-700 font-medium leading-normal flex items-center gap-1 dark:text-emerald-400">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 dark:text-emerald-400" />
                           El pedido ya completó su fase de confección.
                         </p>
                       )}
@@ -968,11 +968,11 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                           return (
                             <div 
                               key={task.id} 
-                              className="bg-white border border-slate-150 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[11px]"
+                              className="bg-white border border-slate-200 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[11px] dark:bg-slate-800 dark:border-slate-700"
                             >
                               <div className="space-y-0.5">
                                 <div className="flex items-center gap-2">
-                                  <strong className="text-slate-800 font-bold">
+                                  <strong className="text-slate-800 font-bold dark:text-slate-200">
                                     {task.stage_id}. {task.stage_name}
                                   </strong>
                                   <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border ${getTaskStatusBadgeClass(task.status_id)}`}>
@@ -990,11 +990,11 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                               {(activeRole === 'admin' || activeRole === 'taller') && localOrder.status_id === 3 && (
                                 <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto border-t sm:border-t-0 pt-2 sm:pt-0">
                                   {isUpdating ? (
-                                    <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                                    <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
                                       <select
                                         value={updatingTaskStatusId}
                                         onChange={(e) => setUpdatingTaskStatusId(parseInt(e.target.value, 10))}
-                                        className="text-[10px] font-bold bg-white border border-slate-200 rounded px-1.5 py-0.5"
+                                        className="text-[10px] font-bold bg-white border border-slate-200 rounded px-1.5 py-0.5 dark:bg-slate-800 dark:border-slate-700"
                                       >
                                         <option value={1}>Pendiente</option>
                                         <option value={2}>En Proceso</option>
@@ -1020,7 +1020,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                                         setUpdatingTaskId(task.id);
                                         setUpdatingTaskStatusId(task.status_id);
                                       }}
-                                      className="inline-flex items-center gap-1 border border-slate-200 hover:bg-slate-50 text-[10px] font-bold px-2.5 py-1 rounded-lg text-slate-600 transition"
+                                      className="inline-flex items-center gap-1 border border-slate-200 hover:bg-slate-50 text-[10px] font-bold px-2.5 py-1 rounded-lg text-slate-600 transition dark:text-slate-400 dark:border-slate-700"
                                     >
                                       Cambiar Estado
                                     </button>
@@ -1032,7 +1032,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                         })}
                       </div>
                     ) : (
-                      <div className="p-3 bg-white border border-slate-150 rounded-xl text-center text-slate-400 text-[11px]">
+                      <div className="p-3 bg-white border border-slate-200 rounded-xl text-center text-slate-400 text-[11px] dark:bg-slate-800 dark:border-slate-700">
                         {localOrder.status_id < 3 
                           ? 'Las tareas de confección aparecerán cuando el pedido ingrese a Producción Activa.'
                           : 'No se encontraron las tareas de taller programadas.'}
@@ -1070,7 +1070,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
             >
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight group-hover:text-indigo-600 transition">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight group-hover:text-indigo-600 transition dark:text-slate-200">
                     Paso 3: Logística y Despacho
                   </h4>
                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
@@ -1083,7 +1083,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                     {localOrder.status_id === 5 ? 'ENTREGADO' : localOrder.status_id === 4 ? 'APTO PARA ENTREGA' : 'NO DISPONIBLE'}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
                   Despacho físico y validación financiera antes de liberar las prendas.
                 </p>
               </div>
@@ -1099,21 +1099,21 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
                 animate={{ opacity: 1, height: 'auto' }}
                 className="pt-2"
               >
-                <div className="bg-slate-50/50 border border-slate-150 rounded-2xl p-4 space-y-4">
+                <div className="bg-slate-50/50 border border-slate-200 rounded-2xl p-4 space-y-4 dark:border-slate-700 dark:bg-slate-800/50">
                   
                   {/* Delivery Schedule Info Card */}
-                  <div className="bg-white border border-slate-150 p-3 rounded-xl shadow-2xs space-y-2 text-[11px]">
+                  <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs space-y-2 text-[11px] dark:bg-slate-800 dark:border-slate-700">
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-indigo-500 shrink-0" />
+                      <Calendar className="h-4 w-4 text-indigo-500 shrink-0 dark:text-indigo-300" />
                       <div>
                         <span className="text-[9px] text-slate-400 block font-bold uppercase">Fecha Estimada de Despacho</span>
-                        <strong className="text-slate-800 font-semibold">{localOrder.estimated_delivery_date}</strong>
+                        <strong className="text-slate-800 font-semibold dark:text-slate-200">{localOrder.estimated_delivery_date}</strong>
                       </div>
                     </div>
                     {localOrder.notes && (
                       <div className="pt-2 border-t border-slate-100">
                         <span className="text-[9px] text-slate-400 block font-bold uppercase">Notas / Dirección de Envío</span>
-                        <p className="text-slate-600 italic bg-slate-50 p-2 rounded-lg mt-1 font-medium border border-slate-100">
+                        <p className="text-slate-600 italic bg-slate-50 p-2 rounded-lg mt-1 font-medium border border-slate-100 dark:text-slate-400 dark:bg-slate-800/50">
                           "{localOrder.notes}"
                         </p>
                       </div>
@@ -1122,16 +1122,16 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
 
                   {/* Delivery Status Details */}
                   {localOrder.status_id === 5 ? (
-                    <div className="p-3.5 bg-emerald-50 border border-emerald-150 text-emerald-800 rounded-xl text-xs font-semibold leading-relaxed flex items-center gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                    <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold leading-relaxed flex items-center gap-2 dark:text-emerald-300 dark:bg-emerald-900/20">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 dark:text-emerald-400" />
                       <span>✓ Pedido completamente entregado y despachado físicamente al cliente.</span>
                     </div>
                   ) : localOrder.status_id === 4 ? (
                     <div className="space-y-3">
                       
                       {/* Financial control guard alert */}
-                      <div className="p-3 bg-amber-50 border border-amber-150 text-amber-950 rounded-xl text-[11px] leading-relaxed space-y-1">
-                        <div className="flex items-center gap-1.5 font-bold text-amber-800">
+                      <div className="p-3 bg-amber-50 border border-amber-200 text-amber-950 rounded-xl text-[11px] leading-relaxed space-y-1 dark:bg-amber-900/20">
+                        <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300">
                           <AlertTriangle className="h-4 w-4 shrink-0" />
                           <span>Gobernanza Financiera Activa</span>
                         </div>
@@ -1143,7 +1143,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
 
                       {/* Outstanding Balance Alert Block */}
                       {remainingBalance > 0.01 && (
-                        <div className="p-3 bg-rose-50 border border-rose-150 rounded-xl text-rose-800 text-[11px] space-y-1">
+                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-[11px] space-y-1">
                           <div className="flex items-center gap-1.5 font-bold text-rose-700">
                             <AlertCircle className="h-4 w-4 shrink-0" />
                             <span>ENTREGA BLOQUEADA PARA TIENDAS</span>
@@ -1179,7 +1179,7 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
 
                     </div>
                   ) : (
-                    <div className="p-3 bg-slate-50 border border-slate-150 text-slate-500 text-xs rounded-xl italic">
+                    <div className="p-3 bg-slate-50 border border-slate-200 text-slate-500 text-xs rounded-xl italic dark:text-slate-400 dark:bg-slate-800/50 dark:border-slate-700">
                       La sección de logística se activará una vez que el taller complete el 100% de la confección de prendas.
                     </div>
                   )}

@@ -169,7 +169,7 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
   // Placeholders for empty days at start of month
   for (let i = 0; i < firstDayIndex; i++) {
     calendarDays.push(
-      <div key={`empty-${i}`} className="h-32 bg-slate-50/50 border border-slate-100 p-2 text-slate-300"></div>
+      <div key={`empty-${i}`} className="h-32 bg-slate-50/50 border border-slate-100 p-2 text-slate-300 dark:bg-slate-800/50"></div>
     );
   }
 
@@ -210,8 +210,8 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Calendario de Pedidos</h2>
-          <p className="text-slate-500 text-sm">Visualización interactiva por fecha estimada de entrega (estimated_delivery_date)</p>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight dark:text-slate-100">Calendario de Pedidos</h2>
+          <p className="text-slate-500 text-sm dark:text-slate-400">Visualización interactiva por fecha estimada de entrega (estimated_delivery_date)</p>
         </div>
         <button
           onClick={onCreateNewOrder}
@@ -223,26 +223,26 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
       </div>
 
       {/* Month Navigator */}
-      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-150 shadow-xs">
+      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-xs dark:bg-slate-800 dark:border-slate-700">
         <div className="flex items-center gap-3">
-          <CalendarIcon className="h-5 w-5 text-indigo-600" />
-          <span className="text-base font-bold text-slate-800">
+          <CalendarIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+          <span className="text-base font-bold text-slate-800 dark:text-slate-200">
             {monthsEs[currentDate.getMonth()]} {currentDate.getFullYear()}
           </span>
-          <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+          <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:text-indigo-300 dark:bg-indigo-900/20">
             {ordersInCurrentMonth.length} pedido{ordersInCurrentMonth.length === 1 ? '' : 's'}
           </span>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={prevMonth}
-            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition"
+            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition dark:text-slate-400 dark:border-slate-700"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
           <button
             onClick={nextMonth}
-            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition"
+            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition dark:text-slate-400 dark:border-slate-700"
           >
             <ChevronRight className="h-5 w-5" />
           </button>
@@ -250,14 +250,14 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
       </div>
 
       {/* Calendar Grid */}
-      <div className="bg-white rounded-3xl border border-slate-150 overflow-hidden shadow-xs">
+      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs dark:bg-slate-800 dark:border-slate-700">
       {loadError && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {loadError}
         </div>
       )}
 
-        <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-150 text-center py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+        <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200 text-center py-3 text-xs font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400 dark:bg-slate-800/50 dark:border-slate-700">
           <div>Dom</div>
           <div>Lun</div>
           <div>Mar</div>
@@ -279,25 +279,25 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col border border-slate-100"
+              className="bg-white rounded-3xl w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col border border-slate-100 dark:bg-slate-800"
             >
               {/* Modal Header */}
-              <div className="p-6 border-b border-slate-100 flex justify-between items-start sticky top-0 bg-white z-10">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-start sticky top-0 bg-white z-10 dark:bg-slate-800">
                 <div>
                   <div className="flex items-center gap-3 mb-1">
-                    <h3 className="text-xl font-bold text-slate-900">Detalles de Pedido #{selectedOrder.id}</h3>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Detalles de Pedido #{selectedOrder.id}</h3>
                     <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full border ${getPriorityBadgeClass(selectedOrder.priority)}`}>
                       Prioridad {selectedOrder.priority}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 flex items-center gap-1">
+                  <p className="text-xs text-slate-500 flex items-center gap-1 dark:text-slate-400">
                     <UserIcon className="h-3 w-3" />
-                    Cliente: <strong className="text-slate-700">{selectedOrder.client_name}</strong>
+                    Cliente: <strong className="text-slate-700 dark:text-slate-300">{selectedOrder.client_name}</strong>
                   </p>
                 </div>
                 <button
                   onClick={closeDetails}
-                  className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 transition"
+                  className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 transition dark:text-slate-400 dark:border-slate-700"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -307,19 +307,19 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
               <div className="p-6 space-y-8 overflow-y-auto">
                 {loadingDetails ? (
                   <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                    <Clock className="h-10 w-10 animate-spin text-indigo-600 mb-2" />
+                    <Clock className="h-10 w-10 animate-spin text-indigo-600 mb-2 dark:text-indigo-400" />
                     <span>Cargando esquema relacional desde base de datos...</span>
                   </div>
                 ) : detailedOrder ? (
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* General info column */}
                     <div className="space-y-4 lg:col-span-5">
-                      <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-3">
+                      <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-3 dark:bg-slate-800/50">
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                          <Layers className="h-4 w-4 text-indigo-500" />
+                          <Layers className="h-4 w-4 text-indigo-500 dark:text-indigo-300" />
                           Información General
                         </h4>
-                        <div className="text-sm space-y-2 text-slate-600">
+                        <div className="text-sm space-y-2 text-slate-600 dark:text-slate-400">
                           <div>
                             <span className="text-[11px] text-slate-400 block font-medium">Estado del Pedido</span>
                             <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadgeClass(detailedOrder.status_id)}`}>
@@ -328,16 +328,16 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
                           </div>
                           <div>
                             <span className="text-[11px] text-slate-400 block font-medium">Fecha Estimada de Entrega</span>
-                            <span className="font-semibold text-slate-800">{detailedOrder.estimated_delivery_date}</span>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">{detailedOrder.estimated_delivery_date}</span>
                           </div>
                           <div>
                             <span className="text-[11px] text-slate-400 block font-medium">Fecha de Inicio en Taller</span>
-                            <span className="font-semibold text-slate-800">{detailedOrder.production_start_date}</span>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">{detailedOrder.production_start_date}</span>
                           </div>
                           {detailedOrder.notes && (
-                            <div className="border-t border-slate-200 pt-2 mt-2">
+                            <div className="border-t border-slate-200 pt-2 mt-2 dark:border-slate-700">
                               <span className="text-[11px] text-slate-400 block font-medium">Notas / Instrucciones</span>
-                              <p className="text-xs italic bg-white p-2 rounded-lg border border-slate-150 text-slate-500 mt-1">
+                              <p className="text-xs italic bg-white p-2 rounded-lg border border-slate-200 text-slate-500 mt-1 dark:text-slate-400 dark:bg-slate-800 dark:border-slate-700">
                                 {detailedOrder.notes}
                               </p>
                             </div>
@@ -352,12 +352,12 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
                       />
 
                       {/* DB Trigger Compliance Box */}
-                      <div className="bg-indigo-50/50 border border-indigo-150 p-4 rounded-2xl space-y-2">
-                        <h4 className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1.5">
-                          <Info className="h-4 w-4 text-indigo-600" />
+                      <div className="bg-indigo-50/50 border border-indigo-200 p-4 rounded-2xl space-y-2 dark:bg-indigo-900/30">
+                        <h4 className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1.5 dark:text-indigo-200">
+                          <Info className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                           Gobernanza de Datos
                         </h4>
-                        <p className="text-[11px] text-indigo-700 leading-relaxed font-medium">
+                        <p className="text-[11px] text-indigo-700 leading-relaxed font-medium dark:text-indigo-300">
                           Los subtotales, totales y de capacidad de taller son calculados directamente en la base de datos por Triggers SQL inmutables.
                         </p>
                       </div>
@@ -366,10 +366,10 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
                     {/* Matrix & specifications column */}
                     <div className="lg:col-span-7 space-y-6">
                       {detailedOrder.items && detailedOrder.items.map((item, itemIdx) => (
-                        <div key={item.id} className="border border-slate-150 rounded-2xl overflow-hidden shadow-xs bg-white">
-                          <div className="bg-slate-50 px-4 py-3 border-b border-slate-150 flex justify-between items-center">
-                            <h4 className="text-sm font-bold text-slate-800">{item.product_name || 'Especificación de Producto'}</h4>
-                            <span className="text-xs text-slate-500 font-mono bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                        <div key={item.id} className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs bg-white dark:bg-slate-800 dark:border-slate-700">
+                          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center dark:bg-slate-800/50 dark:border-slate-700">
+                            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.product_name || 'Especificación de Producto'}</h4>
+                            <span className="text-xs text-slate-500 font-mono bg-white px-2 py-0.5 rounded-lg border border-slate-200 dark:text-slate-400 dark:bg-slate-800 dark:border-slate-700">
                               Base: ${parseFloat(item.unit_price as any).toFixed(2)}
                             </span>
                           </div>
@@ -382,10 +382,10 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
                               </h5>
                               <div className="grid grid-cols-6 gap-2">
                                 {item.sizes && item.sizes.map((sz) => (
-                                  <div key={sz.id} className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center flex flex-col justify-between">
+                                  <div key={sz.id} className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center flex flex-col justify-between dark:bg-slate-800/50 dark:border-slate-700">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase">{sz.size_label}</span>
-                                    <span className="text-sm font-extrabold text-slate-800 mt-1">{sz.quantity}</span>
-                                    <span className="text-[9px] text-indigo-600 font-medium mt-1 bg-indigo-50/50 rounded-md py-0.5 border border-indigo-100/30">
+                                    <span className="text-sm font-extrabold text-slate-800 mt-1 dark:text-slate-200">{sz.quantity}</span>
+                                    <span className="text-[9px] text-indigo-600 font-medium mt-1 bg-indigo-50/50 rounded-md py-0.5 border border-indigo-100/30 dark:text-indigo-400 dark:bg-indigo-900/30">
                                       +${parseFloat(sz.price_modifier_snapshot as any).toFixed(2)}
                                     </span>
                                   </div>
@@ -403,10 +403,10 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
                                   <div key={attr.id} className="flex justify-between items-center border border-slate-100 rounded-xl px-3 py-2 text-xs">
                                     <div>
                                       <span className="text-[10px] text-slate-400 font-medium block">{attr.attribute_name}</span>
-                                      <strong className="text-slate-800 font-semibold">{attr.value_label}</strong>
+                                      <strong className="text-slate-800 font-semibold dark:text-slate-200">{attr.value_label}</strong>
                                     </div>
                                     {Number(attr.price_modifier_snapshot) > 0 && (
-                                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-md">
+                                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-md dark:text-indigo-400 dark:bg-indigo-900/20 dark:border-indigo-800">
                                         +${parseFloat(attr.price_modifier_snapshot as any).toFixed(2)}
                                       </span>
                                     )}
@@ -423,7 +423,7 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
                                 </h5>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                   {item.files.map((file) => (
-                                    <div key={file.id} className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-50 group hover:border-indigo-300 transition">
+                                    <div key={file.id} className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-50 group hover:border-indigo-300 transition dark:bg-slate-800/50 dark:border-slate-700">
                                       <img
                                         src={file.file_url}
                                         alt="Diseño de maquila"
@@ -440,14 +440,14 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
                             )}
 
                             {/* Financial Recalculation Section */}
-                            <div className="border-t border-slate-150 pt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                              <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+                            <div className="border-t border-slate-200 pt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 dark:border-slate-700">
+                              <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5 dark:text-slate-400">
                                 <Info className="h-4 w-4 text-slate-400" />
-                                Cantidad Total: <strong className="text-slate-800 font-bold font-mono">{item.quantity} unidades</strong>
+                                Cantidad Total: <strong className="text-slate-800 font-bold font-mono dark:text-slate-200">{item.quantity} unidades</strong>
                               </span>
                               <div className="text-right">
                                 <span className="text-[10px] text-slate-400 block font-semibold uppercase">Subtotal Ítem (Recalculado)</span>
-                                <span className="text-lg font-black text-indigo-600 font-mono">
+                                <span className="text-lg font-black text-indigo-600 font-mono dark:text-indigo-400">
                                   ${parseFloat(item.subtotal as any).toFixed(2)}
                                 </span>
                               </div>
@@ -477,7 +477,7 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
                     </div>
                   </div>
                 ) : (
-                  <div className="py-8 text-center text-slate-500">Error al cargar detalles de la orden</div>
+                  <div className="py-8 text-center text-slate-500 dark:text-slate-400">Error al cargar detalles de la orden</div>
                 )}
               </div>
             </motion.div>
