@@ -1681,7 +1681,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     value={newFullName}
                     onChange={(e) => setNewFullName(e.target.value)}
                     placeholder="Ej: Mario Marroquín"
-                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700"
+                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
                   />
                 </div>
 
@@ -1693,7 +1693,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
                     placeholder="Ej: mario@example.com"
-                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700"
+                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
                   />
                 </div>
 
@@ -1705,7 +1705,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Contraseña del usuario"
-                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700"
+                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
                   />
                 </div>
 
@@ -1714,7 +1714,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                   <select
                     value={newRoleId}
                     onChange={(e) => setNewRoleId(e.target.value)}
-                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700"
+                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
                   >
                     <option value="1">Administrador (Admin)</option>
                     <option value="2">Tienda / Ventas (Tienda)</option>
@@ -1724,34 +1724,82 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                 </div>
 
                 {newRoleId === '4' && (
-                  <div className="pt-2 pb-1 border-t border-slate-100 mt-2">
+                  <div className="pt-2 pb-1 border-t border-slate-100 dark:border-slate-800 mt-2">
                     <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3 dark:text-indigo-300">Datos Fiscales (Para Facturación DTE)</h4>
                     <div className="grid grid-cols-2 gap-3 mb-3">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">NIT</label>
-                        <input type="text" required inputMode="numeric" autoComplete="off" maxLength={17} value={newNit} onChange={(e) => setNewNit(formatNumericIdentifier(e.target.value, [4, 6, 3, 1]))} placeholder="0000-000000-000-0" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700" />
+                        <input 
+                          type="text" 
+                          required 
+                          inputMode="numeric" 
+                          autoComplete="off" 
+                          maxLength={17} 
+                          value={newNit} 
+                          onChange={(e) => setNewNit(formatNumericIdentifier(e.target.value, [4, 6, 3, 1]))} 
+                          placeholder="0000-000000-000-0" 
+                          className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400" 
+                        />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">NRC</label>
-                        <input type="text" required inputMode="numeric" autoComplete="off" maxLength={9} value={newNrc} onChange={(e) => setNewNrc(formatNumericIdentifier(e.target.value, [7, 1]))} placeholder="0000000-0" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700" />
+                        <input 
+                          type="text" 
+                          required 
+                          inputMode="numeric" 
+                          autoComplete="off" 
+                          maxLength={9} 
+                          value={newNrc} 
+                          onChange={(e) => setNewNrc(formatNumericIdentifier(e.target.value, [7, 1]))} 
+                          placeholder="0000000-0" 
+                          className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400" 
+                        />
                       </div>
                     </div>
                     <div className="space-y-1 mb-3">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Actividad Económica</label>
-                      <input type="text" value={newActividadEconomica} onChange={(e) => setNewActividadEconomica(e.target.value)} placeholder="Ej: Venta al por menor" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700" />
+                      <input 
+                        type="text" 
+                        value={newActividadEconomica} 
+                        onChange={(e) => setNewActividadEconomica(e.target.value)} 
+                        placeholder="Ej: Venta al por menor" 
+                        className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400" 
+                      />
                     </div>
                     <div className="space-y-1 mb-3">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Nombre Comercial</label>
-                      <input type="text" value={newNombreComercial} onChange={(e) => setNewNombreComercial(e.target.value)} placeholder="Nombre del negocio (opcional)" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700" />
+                      <input 
+                        type="text" 
+                        value={newNombreComercial} 
+                        onChange={(e) => setNewNombreComercial(e.target.value)} 
+                        placeholder="Nombre del negocio (opcional)" 
+                        className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400" 
+                      />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Teléfono</label>
-                        <input type="text" required inputMode="numeric" autoComplete="tel" maxLength={9} value={newTelefono} onChange={(e) => setNewTelefono(formatNumericIdentifier(e.target.value, [4, 4]))} placeholder="0000-0000" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700" />
+                        <input 
+                          type="text" 
+                          required 
+                          inputMode="numeric" 
+                          autoComplete="tel" 
+                          maxLength={9} 
+                          value={newTelefono} 
+                          onChange={(e) => setNewTelefono(formatNumericIdentifier(e.target.value, [4, 4]))} 
+                          placeholder="0000-0000" 
+                          className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400" 
+                        />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Dirección</label>
-                        <input type="text" value={newDireccion} onChange={(e) => setNewDireccion(e.target.value)} placeholder="San Salvador" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700" />
+                        <input 
+                          type="text" 
+                          value={newDireccion} 
+                          onChange={(e) => setNewDireccion(e.target.value)} 
+                          placeholder="San Salvador" 
+                          className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400" 
+                        />
                       </div>
                     </div>
                   </div>
@@ -1763,7 +1811,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     type="button"
                     onClick={() => setNewUserIsActive(!newUserIsActive)}
                     className={`relative inline-flex h-5.5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                      newUserIsActive ? 'bg-indigo-600' : 'bg-slate-200'
+                      newUserIsActive ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'
                     }`}
                   >
                     <span
@@ -1774,11 +1822,11 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                   </button>
                 </div>
 
-                <div className="flex gap-2 justify-end pt-4 border-t border-slate-100">
+                <div className="flex gap-2 justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => setShowUserModal(false)}
-                    className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 cursor-pointer dark:text-slate-400 dark:border-slate-700"
+                    className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 cursor-pointer dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800"
                   >
                     Cancelar
                   </button>
