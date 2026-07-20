@@ -337,6 +337,16 @@ CREATE TABLE IF NOT EXISTS rework_events (
     FOREIGN KEY (stage_id) REFERENCES production_stages(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Ampliación 4: Solicitudes de Recuperación de Contraseña con Aprobación de Administrador
+-- Flujo: El usuario solicita un cambio → queda en estado 'pending' → el admin aprueba o rechaza
+--        → si es aprobado el usuario puede ingresar su nueva contraseña desde el login
+CREATE TABLE IF NOT EXISTS password_reset_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 -- =============================================================================
 -- 4. TABLAS DE HISTORIAL Y AUDITORÍA
@@ -495,4 +505,8 @@ ON DUPLICATE KEY UPDATE full_name=VALUES(full_name), email=VALUES(email), role_i
 --    y `product_sizes` con modificadores de precio individuales. Al capturar snapshots 
 --    de estos modificadores al momento de registrar el ítem del pedido, se garantiza la 
 --    consistencia histórica de la facturación y los precios cobrados.
+-- 6. RECUPERACIÓN DE CONTRASEÑA CON APROBACIÓN: La tabla `password_reset_requests`
+--    implementa un flujo seguro de restablecimiento de contraseña donde el usuario
+--    solicita el cambio y un administrador debe aprobarlo antes de que el usuario
+--    pueda definir su nueva contraseña desde la pantalla de login.
 -- =============================================================================

@@ -32,7 +32,7 @@ interface AdminPanelProps {
 
 export default function AdminPanel({ token }: AdminPanelProps) {
   const { theme, toggleTheme } = useTheme();
-  const [subTab, setSubTab] = useState<'capacity' | 'products' | 'access'>('capacity');
+  const [subTab, setSubTab] = useState<'capacity' | 'products' | 'access' | 'password_requests'>('capacity');
   
   // Capacity States
   const [capacityConfigs, setCapacityConfigs] = useState<any[]>([]);
@@ -97,6 +97,10 @@ export default function AdminPanel({ token }: AdminPanelProps) {
   const [newNombreComercial, setNewNombreComercial] = useState('');
   const [creatingUser, setCreatingUser] = useState(false);
   const [accessError, setAccessError] = useState('');
+
+  // Password Reset Requests
+  const [passwordRequests, setPasswordRequests] = useState<any[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
 
   const fetchAccessData = async () => {
     setLoadingAccess(true);
@@ -283,8 +287,46 @@ export default function AdminPanel({ token }: AdminPanelProps) {
       fetchCatalogs();
     } else if (subTab === 'access') {
       fetchAccessData();
+    } else if (subTab === 'password_requests') {
+      fetchPasswordRequests();
     }
   }, [subTab]);
+
+  const fetchPasswordRequests = async () => {
+    setLoadingRequests(true);
+    try {
+      const res = await fetch('/api/admin/password-requests', { headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) setPasswordRequests(data.requests);
+    } catch (err) {
+      console.error('Error fetching password requests:', err);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  const handleUpdatePasswordRequest = async (id: number, status: 'pending' | 'approved' | 'rejected') => {
+    try {
+      const res = await fetch(`/api/admin/password-requests/${id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Solicitud ${status === 'approved' ? 'aprobada' : 'rechazada'}`);
+        fetchPasswordRequests();
+      } else {
+        toast.error(data.message || 'Error al actualizar');
+      }
+    } catch (err) {
+      console.error('Error updating password request:', err);
+      toast.error('Error de servidor');
+    }
+  };
 
   const fetchCapacitySettings = async () => {
     setLoadingCatalogs(true);
@@ -660,6 +702,14 @@ export default function AdminPanel({ token }: AdminPanelProps) {
             >
               Control de Acceso
             </button>
+            <button
+              onClick={() => setSubTab('password_requests')}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
+                subTab === 'password_requests' ? 'bg-white dark:bg-slate-800 text-indigo-750 dark:text-indigo-400 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+              }`}
+            >
+              Solicitudes Contraseña
+            </button>
           </div>
         </div>
       </div>
@@ -685,8 +735,8 @@ export default function AdminPanel({ token }: AdminPanelProps) {
             {capacityConfigs.map((dayConfig, dayIdx) => (
               <div 
                 key={dayConfig.date} 
-                className={`bg-white border rounded-2xl p-5 shadow-xs transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${
-                  dayConfig.isWorking ? 'border-slate-200' : 'border-slate-200 bg-slate-50/50 opacity-70'
+                className={`border rounded-2xl p-5 shadow-xs transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${
+                  dayConfig.isWorking ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700' : 'bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 opacity-70'
                 }`}
               >
                 <div>
@@ -732,8 +782,8 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                   onClick={() => handleDayWorkingToggle(dayIdx)}
                   className={`text-[11px] font-bold py-1.5 px-3 rounded-xl border transition shrink-0 ${
                     dayConfig.isWorking 
-                      ? 'border-indigo-200 bg-indigo-50/50 text-indigo-700 hover:bg-indigo-100'
-                      : 'border-slate-300 bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      ? 'border-indigo-200 bg-indigo-50/50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800/50 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50'
+                      : 'border-slate-300 bg-slate-100 text-slate-500 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
                   }`}
                 >
                   {dayConfig.isWorking ? 'Habilitado' : 'Feriado'}
@@ -1044,7 +1094,69 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         </div>
       )}
 
-      {/* Create Product Modal */}
+      {/* SUB-TAB 4: PASSWORD REQUESTS */}
+      {subTab === 'password_requests' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5 dark:text-slate-200">
+              <Lock className="h-5 w-5 text-indigo-500 dark:text-indigo-300" />
+              Solicitudes de Cambio de Contraseña
+            </h3>
+          </div>
+          <div className="bg-white rounded-2xl shadow-xs border border-slate-100 overflow-hidden dark:bg-slate-900 dark:border-slate-700">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                <thead className="bg-slate-50 dark:bg-slate-800">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-wider dark:text-slate-400">ID</th>
+                    <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-wider dark:text-slate-400">Correo</th>
+                    <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-wider dark:text-slate-400">Fecha</th>
+                    <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-wider dark:text-slate-400">Estado</th>
+                    <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-wider dark:text-slate-400">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-slate-100 dark:bg-slate-900 dark:divide-slate-800">
+                  {loadingRequests ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-sm text-slate-500">Cargando solicitudes...</td>
+                    </tr>
+                  ) : passwordRequests.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-sm text-slate-500">No hay solicitudes pendientes.</td>
+                    </tr>
+                  ) : (
+                    passwordRequests.map((req) => (
+                      <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-900 font-bold dark:text-slate-100">#{req.id}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 dark:text-slate-300">{req.email}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">{new Date(req.created_at).toLocaleString()}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-[10px] font-bold rounded-full ${req.status === 'pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' : req.status === 'approved' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}`}>
+                            {req.status === 'pending' ? 'Pendiente' : req.status === 'approved' ? 'Aprobado' : 'Rechazado'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center space-x-2">
+                          {req.status === 'pending' && (
+                            <>
+                              <button onClick={() => handleUpdatePasswordRequest(req.id, 'approved')} className="text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg font-bold transition dark:bg-emerald-900/50 dark:text-emerald-300 dark:hover:bg-emerald-800/70">Aprobar</button>
+                              <button onClick={() => handleUpdatePasswordRequest(req.id, 'rejected')} className="text-xs bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1.5 rounded-lg font-bold transition dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-800/70">Rechazar</button>
+                            </>
+                          )}
+                          {req.status === 'rejected' && (
+                            <button onClick={() => handleUpdatePasswordRequest(req.id, 'pending')} className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg font-bold transition dark:bg-amber-900/50 dark:text-amber-300 dark:hover:bg-amber-800/70">Cambiar a Pendiente</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODALS */}
       <AnimatePresence>
         {showProductModal && (
           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
