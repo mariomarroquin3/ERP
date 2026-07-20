@@ -790,3 +790,4 @@ export async function getDbPool(): Promise<Pool | null> {
     return null;
   }
 }
+// Mensaje para guardar el db.ts en el commit

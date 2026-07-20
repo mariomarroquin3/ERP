@@ -223,7 +223,7 @@ CREATE TABLE IF NOT EXISTS order_item_sizes (
 CREATE TABLE IF NOT EXISTS order_item_files (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_item_id INT NOT NULL,
-    file_url VARCHAR(500) NOT NULL,
+    file_url LONGTEXT NOT NULL,
     file_type VARCHAR(100) NOT NULL DEFAULT 'image/jpeg',
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE
