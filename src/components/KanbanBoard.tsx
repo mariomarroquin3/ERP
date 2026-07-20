@@ -433,13 +433,13 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
   return (
     <div className="space-y-6">
       {/* Header Bar */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-150 shadow-2xs">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Trello className="h-6 w-6 text-indigo-600" />
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
+            <Trello className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
             Tablero Kanban de Producción
           </h2>
-          <p className="text-slate-500 text-sm">
+          <p className="text-slate-500 dark:text-slate-400 text-sm">
             {viewMode === 'active' 
               ? 'Monitoreo en tiempo real del taller operativo — mostrando la etapa activa de cada lote.' 
               : `Calendario de planificación — mostrando tareas programadas para el inicio de la producción.`}
@@ -449,13 +449,13 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
         {/* View Mode & Date Filter Controls */}
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           {/* Mode Switcher Buttons */}
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60 shadow-2xs">
+          <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-xl border border-slate-200 dark:border-slate-600 shadow-2xs">
             <button
               onClick={() => setViewMode('active')}
               className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                 viewMode === 'active'
-                  ? 'bg-white text-indigo-600 shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               Tablero Operativo (Activo)
@@ -464,8 +464,8 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
               onClick={() => setViewMode('scheduled')}
               className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                 viewMode === 'scheduled'
-                  ? 'bg-white text-indigo-600 shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               Calendario Planificado
@@ -474,20 +474,20 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
 
           {/* Active Mode Status Badge */}
           {viewMode === 'active' ? (
-            <div className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-2xs">
+            <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-2xs">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
               <span>Taller Activo</span>
             </div>
           ) : (
             /* Date Filter for Scheduled Mode */
-            <div className="flex items-center gap-2 bg-white px-3.5 py-1.5 rounded-xl border border-slate-250 shadow-2xs">
-              <CalendarIcon className="h-4 w-4 text-slate-400 shrink-0" />
-              <span className="text-xs font-bold text-slate-500 uppercase">Fecha:</span>
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3.5 py-1.5 rounded-xl border border-slate-250 dark:border-slate-700 shadow-2xs">
+              <CalendarIcon className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0" />
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Fecha:</span>
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="text-xs font-bold font-mono text-indigo-600 focus:outline-none bg-transparent"
+                className="text-xs font-bold font-mono text-indigo-600 dark:text-indigo-400 focus:outline-none bg-transparent"
               />
             </div>
           )}
@@ -496,13 +496,13 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
 
       {/* Tabs Switcher for Supervisor/Admin */}
       {(user.role === 'admin' || user.role === 'taller') && (
-        <div className="flex border-b border-slate-200 gap-1.5">
+        <div className="flex border-b border-slate-200 dark:border-slate-700 gap-1.5">
           <button
             onClick={() => setActiveTab('kanban')}
             className={`px-4 py-2 text-xs font-bold rounded-t-xl border-t border-x transition-all ${
               activeTab === 'kanban'
-                ? 'bg-white border-slate-200 text-indigo-600 border-b-white translate-y-[1px] z-10'
-                : 'bg-slate-50/50 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
+                ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 border-b-white translate-y-[1px] z-10'
+                : 'bg-slate-50/50 dark:bg-slate-800/50 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-700/50'
             }`}
           >
             Tablero Kanban (Todas las Etapas)
@@ -511,8 +511,8 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
             onClick={() => setActiveTab('approvals')}
             className={`px-4 py-2 text-xs font-bold rounded-t-xl border-t border-x transition-all flex items-center gap-1.5 ${
               activeTab === 'approvals'
-                ? 'bg-white border-slate-200 text-indigo-600 border-b-white translate-y-[1px] z-10'
-                : 'bg-slate-50/50 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
+                ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 border-b-white translate-y-[1px] z-10'
+                : 'bg-slate-50/50 dark:bg-slate-800/50 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-700/50'
             }`}
           >
             <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />
@@ -528,14 +528,14 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
 
       {/* Main Content Area */}
       {activeTab === 'approvals' && (user.role === 'admin' || user.role === 'taller') ? (
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-6">
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-6 dark:bg-slate-800 dark:border-slate-700">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-5">
             <div>
-              <h3 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+              <h3 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2 dark:text-slate-100">
                 <ShieldCheck className="h-5 w-5 text-amber-500" />
                 Lotes Pendientes de Validación de Calidad
               </h3>
-              <p className="text-slate-500 text-xs mt-0.5">
+              <p className="text-slate-500 text-xs mt-0.5 dark:text-slate-400">
                 Valide físicamente o mediante fotos el trabajo de los operarios antes de pasarlo a la siguiente etapa de producción.
               </p>
             </div>
@@ -558,20 +558,20 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
 
           {loadingPendingReview ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-              <Clock className="h-8 w-8 animate-spin text-indigo-600 mb-2" />
+              <Clock className="h-8 w-8 animate-spin text-indigo-600 mb-2 dark:text-indigo-400" />
               <span className="text-xs font-semibold">Cargando cola de revisión...</span>
             </div>
           ) : pendingReviewTasks.length === 0 ? (
-            <div className="text-center py-16 border-2 border-dashed border-slate-150 rounded-2xl bg-slate-50/50">
+            <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 dark:border-slate-700 dark:bg-slate-800/50">
               <ShieldCheck className="h-10 w-10 text-emerald-500 mx-auto mb-3" />
-              <p className="text-sm font-bold text-slate-700">¡Todo al día!</p>
-              <p className="text-xs text-slate-500 mt-1">No hay lotes en "Listo para Revisión" esperando validación en este momento.</p>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">¡Todo al día!</p>
+              <p className="text-xs text-slate-500 mt-1 dark:text-slate-400">No hay lotes en "Listo para Revisión" esperando validación en este momento.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-150">
+            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-500 uppercase font-black text-[9px] tracking-wider border-b border-slate-150">
+                  <tr className="bg-slate-50 text-slate-500 uppercase font-black text-[9px] tracking-wider border-b border-slate-200 dark:text-slate-400 dark:bg-slate-800/50 dark:border-slate-700">
                     <th className="py-3 px-4 w-12 text-center">
                       <input
                         type="checkbox"
@@ -583,7 +583,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                             setSelectedReviewTaskIds([]);
                           }
                         }}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 dark:text-indigo-400 dark:border-slate-600"
                       />
                     </th>
                     <th className="py-3 px-4 w-20">ID Tarea</th>
@@ -595,7 +595,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                     <th className="py-3 px-4 text-right">Acción</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-150 bg-white">
+                <tbody className="divide-y divide-slate-200 bg-white dark:bg-slate-800">
                   {pendingReviewTasks.map((task) => (
                     <tr key={task.id} className="hover:bg-slate-50/40 transition">
                       <td className="py-3.5 px-4 text-center">
@@ -609,24 +609,24 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                               setSelectedReviewTaskIds(selectedReviewTaskIds.filter((id) => id !== task.id));
                             }
                           }}
-                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 dark:text-indigo-400 dark:border-slate-600"
                         />
                       </td>
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-500">#{task.id}</td>
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-500 dark:text-slate-400">#{task.id}</td>
                       <td className="py-3.5 px-4">
                         <div>
-                          <p className="font-extrabold text-slate-800 leading-tight text-xs">{task.product_name}</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">
-                            Cliente: <span className="font-semibold text-slate-700">{task.client_name}</span> | Orden #{task.order_id}
+                          <p className="font-extrabold text-slate-800 leading-tight text-xs dark:text-slate-200">{task.product_name}</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5 dark:text-slate-400">
+                            Cliente: <span className="font-semibold text-slate-700 dark:text-slate-300">{task.client_name}</span> | Orden #{task.order_id}
                           </p>
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="font-black text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md uppercase tracking-wide text-[9px]">
+                        <span className="font-black text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md uppercase tracking-wide text-[9px] dark:text-indigo-300 dark:bg-indigo-900/20 dark:border-indigo-800">
                           {task.stage_name}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-center font-bold font-mono text-slate-700">{task.workload_points} uds</td>
+                      <td className="py-3.5 px-4 text-center font-bold font-mono text-slate-700 dark:text-slate-300">{task.workload_points} uds</td>
                       <td className="py-3.5 px-4">
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
                           task.order_priority === 'urgent'
@@ -640,12 +640,12 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                           {task.order_priority}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 font-semibold font-mono text-slate-600">{task.order_delivery_date}</td>
+                      <td className="py-3.5 px-4 font-semibold font-mono text-slate-600 dark:text-slate-400">{task.order_delivery_date}</td>
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => openSpecViewer(task)}
-                            className="bg-slate-50 hover:bg-slate-150 border border-slate-200 text-slate-600 p-1.5 rounded-lg transition"
+                            className="bg-slate-50 hover:bg-slate-200 border border-slate-200 text-slate-600 p-1.5 rounded-lg transition dark:text-slate-400 dark:bg-slate-800/50 dark:border-slate-700"
                             title="Ver Ficha Técnica"
                           >
                             <Eye className="h-3.5 w-3.5" />
@@ -671,7 +671,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
         /* Horizontal scrollable columns for 10 stages */
         loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <Clock className="h-10 w-10 animate-spin text-indigo-600 mb-2" />
+            <Clock className="h-10 w-10 animate-spin text-indigo-600 mb-2 dark:text-indigo-400" />
             <span className="text-sm font-medium">Sincronizando tareas con el taller...</span>
           </div>
         ) : (
@@ -681,13 +681,13 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
               return (
                 <div 
                   key={stage.id} 
-                  className="bg-slate-50/50 border border-slate-200/60 rounded-2xl p-4 flex flex-col min-h-[550px] shrink-0 w-72 snap-start shadow-xs"
+                  className="bg-slate-50/50 border border-slate-200/60 rounded-2xl p-4 flex flex-col min-h-[500px] shrink-0 w-72 snap-start shadow-xs dark:bg-slate-800/50"
                 >
                   {/* Column Header */}
                   <div className={`p-3 rounded-xl border-t-4 ${stage.color} mb-3 shadow-xs`}>
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-black uppercase tracking-wider">{stage.name}</span>
-                      <span className="text-[10px] font-bold bg-white text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">
+                      <span className="text-[10px] font-bold bg-white text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 dark:text-slate-400 dark:bg-slate-800 dark:border-slate-700">
                         {stageTasks.length}
                       </span>
                     </div>
@@ -696,14 +696,14 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                   {/* Column Tasks List */}
                   <div className="space-y-3 flex-1 overflow-y-auto">
                     {stageTasks.length === 0 ? (
-                      <div className="text-center py-10 border border-dashed border-slate-200 rounded-xl">
+                      <div className="text-center py-10 border border-dashed border-slate-200 rounded-xl dark:border-slate-700">
                         <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Sin tareas asignadas</span>
                       </div>
                     ) : (
                       stageTasks.map((task) => (
                         <div 
                           key={task.id} 
-                          className="bg-white border border-slate-150 rounded-xl p-4.5 hover:border-indigo-200 transition relative group shadow-xs hover:shadow-sm"
+                          className="bg-white border border-slate-200 rounded-xl p-4.5 hover:border-indigo-200 transition relative group shadow-xs hover:shadow-sm dark:bg-slate-800 dark:border-slate-700"
                         >
                           {/* Task Priority Accent */}
                           <div className="absolute top-0 inset-x-0 h-1 rounded-t-xl bg-indigo-500/10 group-hover:bg-indigo-500 transition" />
@@ -712,8 +712,8 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                           <div className="space-y-3.5">
                             <div className="flex justify-between items-start gap-1 flex-wrap">
                               <div className="flex gap-1.5 items-center flex-wrap">
-                                <span className="text-[10px] font-extrabold text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">TASK #{task.id}</span>
-                                <span className="text-[10px] font-extrabold text-indigo-600 font-mono bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">PEDIDO #{task.order_id}</span>
+                                <span className="text-[10px] font-extrabold text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded dark:bg-slate-800">TASK #{task.id}</span>
+                                <span className="text-[10px] font-extrabold text-indigo-600 font-mono bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 dark:text-indigo-400 dark:bg-indigo-900/20 dark:border-indigo-800">PEDIDO #{task.order_id}</span>
                                 {task.task_type && task.task_type !== 'normal' && (
                                   <span className={`px-1.5 py-0.5 text-[8px] font-extrabold rounded-md uppercase border ${
                                     task.task_type === 'repair'
@@ -730,21 +730,21 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                             </div>
 
                             <div>
-                              <h4 className="text-xs font-bold text-slate-800 leading-tight mb-0.5">{task.product_name}</h4>
-                              <span className="text-[10px] text-slate-400 block font-medium">Cliente: <strong className="text-slate-600">{task.client_name}</strong></span>
+                              <h4 className="text-xs font-bold text-slate-800 leading-tight mb-0.5 dark:text-slate-200">{task.product_name}</h4>
+                              <span className="text-[10px] text-slate-400 block font-medium">Cliente: <strong className="text-slate-600 dark:text-slate-400">{task.client_name}</strong></span>
                             </div>
 
                             {/* Workload */}
-                            <div className="flex items-center justify-between text-[10px] bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1 text-slate-500">
+                            <div className="flex items-center justify-between text-[10px] bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1 text-slate-500 dark:text-slate-400 dark:bg-slate-800/50">
                               <span className="font-semibold">Lote a Producir:</span>
-                              <span className="font-bold font-mono text-indigo-700">{task.workload_points} uds</span>
+                              <span className="font-bold font-mono text-indigo-700 dark:text-indigo-300">{task.workload_points} uds</span>
                             </div>
 
                             {/* Quick Actions Footer */}
                             <div className="flex gap-1.5 pt-2 border-t border-slate-100 flex-wrap">
                               <button
                                 onClick={() => openSpecViewer(task)}
-                                className="grow inline-flex items-center justify-center gap-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-semibold py-1.5 px-2 rounded-lg transition"
+                                className="grow inline-flex items-center justify-center gap-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-semibold py-1.5 px-2 rounded-lg transition dark:text-slate-400 dark:bg-slate-800/50 dark:border-slate-700"
                               >
                                 <Eye className="h-3.5 w-3.5" />
                                 Ficha
@@ -752,7 +752,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
 
                               <button
                                 onClick={() => toggleTimeline(task.id, task.order_id)}
-                                className="grow inline-flex items-center justify-center gap-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-semibold py-1.5 px-2 rounded-lg transition"
+                                className="grow inline-flex items-center justify-center gap-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-semibold py-1.5 px-2 rounded-lg transition dark:text-slate-400 dark:bg-slate-800/50 dark:border-slate-700"
                                 title="Ver Fases del Pedido"
                               >
                                 <Layers className="h-3.5 w-3.5" />
@@ -843,20 +843,20 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
 
                             {/* Fases del Pedido Dropdown */}
                             {expandedTimelineTaskId === task.id && (
-                              <div className="pt-2 mt-2 border-t border-slate-150">
-                                <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Cronograma del Pedido</h5>
+                              <div className="pt-2 mt-2 border-t border-slate-200 dark:border-slate-700">
+                                <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 dark:text-slate-400">Cronograma del Pedido</h5>
                                 {loadingTimeline ? (
                                   <div className="text-center py-4"><span className="animate-spin inline-block h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></span></div>
                                 ) : (
                                   <div className="space-y-1.5">
                                     {timelineTasks.map((tt: any) => (
-                                      <div key={tt.id} className="flex justify-between items-center text-[9px] p-1.5 rounded bg-slate-50 border border-slate-150">
+                                      <div key={tt.id} className="flex justify-between items-center text-[9px] p-1.5 rounded bg-slate-50 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
                                         <div className="flex items-center gap-1.5">
                                           <div className={`h-2 w-2 rounded-full ${tt.status_id === 3 ? 'bg-emerald-500' : tt.status_id === 2 ? 'bg-blue-500' : 'bg-slate-300'}`}></div>
-                                          <span className="font-bold text-slate-700">{tt.stage_name}</span>
+                                          <span className="font-bold text-slate-700 dark:text-slate-300">{tt.stage_name}</span>
                                         </div>
                                         <div className="text-right">
-                                          <div className="font-semibold text-slate-500">{tt.status_name}</div>
+                                          <div className="font-semibold text-slate-500 dark:text-slate-400">{tt.status_name}</div>
                                           <div className="text-[8px] text-slate-400">
                                             {tt.status_id === 3 ? `Fin: ${formatSimpleDate(tt.updated_at || tt.end_date_actual)}` : `Prog: ${formatSimpleDate(tt.start_date)}`}
                                           </div>
@@ -888,17 +888,17 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl w-full max-w-xl shadow-2xl flex flex-col border border-slate-100 overflow-hidden"
+              className="bg-white rounded-3xl w-full max-w-xl shadow-2xl flex flex-col border border-slate-100 overflow-hidden dark:bg-slate-800"
             >
               {/* Header */}
               <div className="p-5 border-b border-slate-100 flex justify-between items-start">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Ficha Técnica de Ensamblaje</h3>
-                  <span className="text-xs text-slate-500 font-mono">Tarea #{selectedTaskSpec.id} | Etapa: {selectedTaskSpec.stage_name}</span>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Ficha Técnica de Ensamblaje</h3>
+                  <span className="text-xs text-slate-500 font-mono dark:text-slate-400">Tarea #{selectedTaskSpec.id} | Etapa: {selectedTaskSpec.stage_name}</span>
                 </div>
                 <button
                   onClick={closeSpecViewer}
-                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-400 transition"
+                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-400 transition dark:border-slate-700"
                 >
                   <X className="h-4.5 w-4.5" />
                 </button>
@@ -908,24 +908,24 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
               <div className="p-5 space-y-5 overflow-y-auto max-h-[70vh]">
                 {loadingSpec ? (
                   <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                    <Clock className="h-10 w-10 animate-spin text-indigo-600 mb-2" />
+                    <Clock className="h-10 w-10 animate-spin text-indigo-600 mb-2 dark:text-indigo-400" />
                     <span>Cargando matriz de tallas activa...</span>
                   </div>
                 ) : detailedOrderSpec ? (
                   <div className="space-y-5 text-sm">
                     {/* Basic specs */}
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-150 space-y-2">
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 dark:bg-slate-800/50 dark:border-slate-700">
                       <div className="flex justify-between">
-                        <span className="text-slate-500 text-xs font-semibold uppercase">Lote/Pedido</span>
-                        <strong className="text-slate-800 font-bold">Orden #{detailedOrderSpec.id}</strong>
+                        <span className="text-slate-500 text-xs font-semibold uppercase dark:text-slate-400">Lote/Pedido</span>
+                        <strong className="text-slate-800 font-bold dark:text-slate-200">Orden #{detailedOrderSpec.id}</strong>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-500 text-xs font-semibold uppercase">Cliente</span>
-                        <strong className="text-slate-800 font-bold">{detailedOrderSpec.client_name}</strong>
+                        <span className="text-slate-500 text-xs font-semibold uppercase dark:text-slate-400">Cliente</span>
+                        <strong className="text-slate-800 font-bold dark:text-slate-200">{detailedOrderSpec.client_name}</strong>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-500 text-xs font-semibold uppercase">Producto Principal</span>
-                        <strong className="text-slate-800 font-bold">{selectedTaskSpec.product_name}</strong>
+                        <span className="text-slate-500 text-xs font-semibold uppercase dark:text-slate-400">Producto Principal</span>
+                        <strong className="text-slate-800 font-bold dark:text-slate-200">{selectedTaskSpec.product_name}</strong>
                       </div>
                     </div>
 
@@ -936,9 +936,9 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                           <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Matriz de Tallas a Confeccionar</h4>
                           <div className="grid grid-cols-4 gap-2">
                             {item.sizes && item.sizes.map((sz) => (
-                              <div key={sz.id} className="bg-indigo-50/50 border border-indigo-150 rounded-xl p-2.5 text-center">
-                                <span className="text-[10px] font-bold text-indigo-700 block uppercase leading-none">{sz.size_label}</span>
-                                <span className="text-lg font-black text-slate-800 block mt-1 leading-none">{sz.quantity}</span>
+                              <div key={sz.id} className="bg-indigo-50/50 border border-indigo-200 rounded-xl p-2.5 text-center dark:bg-indigo-900/30">
+                                <span className="text-[10px] font-bold text-indigo-700 block uppercase leading-none dark:text-indigo-300">{sz.size_label}</span>
+                                <span className="text-lg font-black text-slate-800 block mt-1 leading-none dark:text-slate-200">{sz.quantity}</span>
                                 <span className="text-[9px] text-slate-400 block mt-1">unidades</span>
                               </div>
                             ))}
@@ -951,9 +951,9 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Atributos y Detalles de Bordado</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                               {item.attributes.map((attr) => (
-                                <div key={attr.id} className="border border-slate-150 rounded-xl px-3 py-2 text-xs bg-slate-50/20">
+                                <div key={attr.id} className="border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50/20 dark:border-slate-700 dark:bg-slate-800/20">
                                   <span className="text-[10px] text-slate-400 block font-semibold">{attr.attribute_name}</span>
-                                  <strong className="text-slate-700 font-bold">{attr.value_label}</strong>
+                                  <strong className="text-slate-700 font-bold dark:text-slate-300">{attr.value_label}</strong>
                                 </div>
                               ))}
                             </div>
@@ -966,7 +966,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Diseño de Bordado Asociado</h4>
                             <div className="grid grid-cols-2 gap-2">
                               {item.files.map((file) => (
-                                <div key={file.id} className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-50 group">
+                                <div key={file.id} className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-50 group dark:bg-slate-800/50 dark:border-slate-700">
                                   <img 
                                     src={file.file_url} 
                                     referrerPolicy="no-referrer"
@@ -986,26 +986,26 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
 
                     {/* Rework / Retrabajo History Log */}
                     {reworkHistory && reworkHistory.length > 0 && (
-                      <div className="pt-4 border-t border-slate-150">
+                      <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                           <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                           Historial de Retrabajos y Correcciones
                         </h4>
                         <div className="space-y-2">
                           {reworkHistory.map((rw) => (
-                            <div key={rw.id} className="p-3 bg-amber-50/20 border border-amber-150 rounded-xl space-y-1 text-xs">
+                            <div key={rw.id} className="p-3 bg-amber-50/20 border border-amber-200 rounded-xl space-y-1 text-xs">
                               <div className="flex justify-between items-center">
-                                <span className="font-bold text-slate-800">
+                                <span className="font-bold text-slate-800 dark:text-slate-200">
                                   {rw.rework_type === 'arreglo' ? 'Arreglo de Etapa' : 'Empezar de Nuevo'}
                                 </span>
                                 <span className="text-[10px] text-slate-400 font-medium">
                                   {new Date(rw.created_at).toLocaleString('es-ES')}
                                 </span>
                               </div>
-                              <p className="text-slate-600 leading-relaxed text-[11px] bg-white/40 p-2 rounded-lg border border-slate-100">
+                              <p className="text-slate-600 leading-relaxed text-[11px] bg-white/40 p-2 rounded-lg border border-slate-100 dark:text-slate-400">
                                 {rw.description}
                               </p>
-                              <div className="flex justify-between text-[10px] text-slate-500">
+                              <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
                                 <span>Reportado en: <strong>{rw.stage_name}</strong></span>
                                 <span>Por: <strong>{rw.created_by_name || 'Supervisor'}</strong></span>
                               </div>
@@ -1032,14 +1032,14 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 border border-slate-100 space-y-4"
+              className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 border border-slate-100 space-y-4 dark:bg-slate-800"
             >
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-indigo-600" />
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 dark:text-slate-100">
+                <ShieldCheck className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                 Registrar Registro de Control
               </h3>
               
-              <div className="space-y-1 bg-slate-50 p-3.5 rounded-xl text-xs text-slate-600 leading-normal">
+              <div className="space-y-1 bg-slate-50 p-3.5 rounded-xl text-xs text-slate-600 leading-normal dark:text-slate-400 dark:bg-slate-800/50">
                 <p>El cambio de estado se ejecutará bajo una **lectura bloqueante (FOR UPDATE)** y disparará de inmediato el Trigger de historial de auditoría en la BD.</p>
               </div>
 
@@ -1049,7 +1049,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                   value={statusComment}
                   onChange={(e) => setStatusComment(e.target.value)}
                   placeholder="Ej: Corte finalizado para la orden. Cantidad verificada de 30 uds."
-                  className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 text-slate-900"
+                  className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 text-slate-900 dark:text-slate-100 dark:border-slate-700 dark:bg-slate-800/50"
                   rows={3}
                 />
               </div>
@@ -1058,7 +1058,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                 <button
                   type="button"
                   onClick={() => setCommentingTask(null)}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50"
+                  className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 dark:text-slate-400 dark:border-slate-700"
                 >
                   Cancelar
                 </button>
@@ -1083,18 +1083,18 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 border border-slate-100 space-y-4 text-left"
+              className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 border border-slate-100 space-y-4 text-left dark:bg-slate-800"
             >
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <ChevronRight className="h-5 w-5 text-indigo-600" />
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 dark:text-slate-100">
+                <ChevronRight className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                 Avanzar a Siguiente Etapa
               </h3>
 
-              <p className="text-xs text-slate-600">
-                ¿Estás seguro de que deseas marcar como **Completada** la etapa de <strong className="text-slate-800">{advancingTask.stage_name}</strong> para el producto <strong className="text-slate-800">{advancingTask.product_name}</strong> y avanzar a la siguiente etapa?
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                ¿Estás seguro de que deseas marcar como **Completada** la etapa de <strong className="text-slate-800 dark:text-slate-200">{advancingTask.stage_name}</strong> para el producto <strong className="text-slate-800 dark:text-slate-200">{advancingTask.product_name}</strong> y avanzar a la siguiente etapa?
               </p>
 
-              <div className="space-y-1 bg-slate-50 p-3 rounded-xl text-xs text-slate-600 leading-normal">
+              <div className="space-y-1 bg-slate-50 p-3 rounded-xl text-xs text-slate-600 leading-normal dark:text-slate-400 dark:bg-slate-800/50">
                 <p>Esto reprogramará la siguiente etapa para comenzar **hoy** ({selectedDate}), logrando que la tarjeta se actualice visualmente en el tablero de forma inmediata.</p>
               </div>
 
@@ -1104,7 +1104,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                   value={advanceComment}
                   onChange={(e) => setAdvanceComment(e.target.value)}
                   placeholder="Ej: Corte finalizado. Listas las piezas para la siguiente fase."
-                  className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 text-slate-900 focus:ring-1 focus:ring-indigo-500 outline-none"
+                  className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 text-slate-900 focus:ring-1 focus:ring-indigo-500 outline-none dark:text-slate-100 dark:border-slate-700 dark:bg-slate-800/50"
                   rows={2}
                 />
               </div>
@@ -1117,7 +1117,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                     setAdvanceComment('');
                   }}
                   disabled={advanceSubmitting}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 transition disabled:opacity-50"
+                  className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 transition disabled:opacity-50 dark:text-slate-400 dark:border-slate-700"
                 >
                   Cancelar
                 </button>
@@ -1146,25 +1146,25 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl w-full max-w-lg shadow-2xl p-6 border border-slate-100 space-y-4 text-left"
+              className="bg-white rounded-3xl w-full max-w-lg shadow-2xl p-6 border border-slate-100 space-y-4 text-left dark:bg-slate-800"
             >
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 dark:text-slate-100">
                 <AlertTriangle className="h-5 w-5 text-amber-500" />
                 Registrar Evento de Retrabajo / Corrección
               </h3>
 
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-150 space-y-1.5 text-xs">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5 text-xs dark:bg-slate-800/50 dark:border-slate-700">
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-semibold uppercase">Pedido</span>
-                  <strong className="text-slate-800">Orden #{reworkTask.order_id}</strong>
+                  <span className="text-slate-500 font-semibold uppercase dark:text-slate-400">Pedido</span>
+                  <strong className="text-slate-800 dark:text-slate-200">Orden #{reworkTask.order_id}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-semibold uppercase">Etapa con error</span>
-                  <strong className="text-slate-800">{reworkTask.stage_name}</strong>
+                  <span className="text-slate-500 font-semibold uppercase dark:text-slate-400">Etapa con error</span>
+                  <strong className="text-slate-800 dark:text-slate-200">{reworkTask.stage_name}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-semibold uppercase">Producto</span>
-                  <strong className="text-slate-800">{reworkTask.product_name}</strong>
+                  <span className="text-slate-500 font-semibold uppercase dark:text-slate-400">Producto</span>
+                  <strong className="text-slate-800 dark:text-slate-200">{reworkTask.product_name}</strong>
                 </div>
               </div>
 
@@ -1181,8 +1181,8 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                         : 'border-slate-200 hover:bg-slate-50'
                     }`}
                   >
-                    <span className="text-xs font-bold text-slate-800">Arreglo de Etapa</span>
-                    <span className="text-[10px] text-slate-500 leading-normal">Corregir un detalle rápido sin cambiar de columna en el taller.</span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Arreglo de Etapa</span>
+                    <span className="text-[10px] text-slate-500 leading-normal dark:text-slate-400">Corregir un detalle rápido sin cambiar de columna en el taller.</span>
                   </button>
 
                   <button
@@ -1194,8 +1194,8 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                         : 'border-slate-200 hover:bg-slate-50'
                     }`}
                   >
-                    <span className="text-xs font-bold text-slate-800 text-amber-800">Hacer de nuevo (Empezar Corte)</span>
-                    <span className="text-[10px] text-slate-500 leading-normal">El error requiere volver a cortar tela y reiniciar procesos previos.</span>
+                    <span className="text-xs font-bold text-slate-800 text-amber-800 dark:text-slate-200">Hacer de nuevo (Empezar Corte)</span>
+                    <span className="text-[10px] text-slate-500 leading-normal dark:text-slate-400">El error requiere volver a cortar tela y reiniciar procesos previos.</span>
                   </button>
                 </div>
               </div>
@@ -1207,7 +1207,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                   <select
                     value={targetStageId}
                     onChange={(e) => setTargetStageId(parseInt(e.target.value, 10))}
-                    className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 text-slate-900 focus:ring-1 focus:ring-indigo-500 outline-none font-medium"
+                    className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 text-slate-900 focus:ring-1 focus:ring-indigo-500 outline-none font-medium dark:text-slate-100 dark:border-slate-700 dark:bg-slate-800/50"
                   >
                     {stages
                       .filter((s) => s.id <= reworkTask.stage_id)
@@ -1217,7 +1217,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                         </option>
                       ))}
                   </select>
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
                     Se restablecerán las etapas desde la seleccionada hasta la etapa actual. El inicio de la primera etapa reiniciada se programará para hoy.
                   </p>
                 </div>
@@ -1230,7 +1230,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                   value={reworkDescription}
                   onChange={(e) => setReworkDescription(e.target.value)}
                   placeholder="Ej: El estampado salió movido 2cm, reiniciar confección desde Corte para reponer piezas."
-                  className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 text-slate-900 focus:ring-1 focus:ring-indigo-500 outline-none"
+                  className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 text-slate-900 focus:ring-1 focus:ring-indigo-500 outline-none dark:text-slate-100 dark:border-slate-700 dark:bg-slate-800/50"
                   rows={3}
                   required
                 />
@@ -1244,7 +1244,7 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
                     setReworkDescription('');
                   }}
                   disabled={reworkSubmitting}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 transition disabled:opacity-50"
+                  className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 transition disabled:opacity-50 dark:text-slate-400 dark:border-slate-700"
                 >
                   Cancelar
                 </button>

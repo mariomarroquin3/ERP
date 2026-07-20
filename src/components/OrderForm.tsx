@@ -15,10 +15,13 @@ import {
   Info,
   ExternalLink,
   ShieldAlert,
-  Search
+  Search,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, ProductAttribute, ProductSize, User } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface OrderFormProps {
   token: string;
@@ -73,6 +76,7 @@ const formatDateSpanish = (dateStr: string): string => {
 };
 
 export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps) {
+  const { theme, toggleTheme } = useTheme();
   // Clients list
   const [clients, setClients] = useState<User[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
@@ -405,17 +409,28 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onCancel}
-          className="p-2 hover:bg-slate-50 border border-slate-200 text-slate-600 rounded-xl transition"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Crear Pedido Transaccional</h2>
-          <p className="text-sm text-slate-500">Formulario complejo con validación en tiempo real y gobernanza en Base de Datos.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onCancel}
+            className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition"
+            title="Volver al Calendario"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Crear Pedido Transaccional</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Formulario complejo con validación en tiempo real y gobernanza en Base de Datos.</p>
+          </div>
         </div>
+
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-100 transition"
+          title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+        >
+          {theme === 'dark' ? <Sun className="h-5 w-5 text-amber-500" /> : <Moon className="h-5 w-5" />}
+        </button>
       </div>
 
       {/* SQL Warning Panel (DB Triggers Errors Interface) */}
@@ -423,17 +438,17 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-red-50 border-2 border-red-200 text-red-900 p-5 rounded-2xl flex gap-3.5 items-start"
+          className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 text-red-900 dark:text-red-300 p-5 rounded-2xl flex gap-3.5 items-start"
         >
-          <ShieldAlert className="h-6 w-6 text-red-600 shrink-0 mt-0.5" />
+          <ShieldAlert className="h-6 w-6 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <h4 className="text-sm font-bold text-red-800 uppercase tracking-wide">
+            <h4 className="text-sm font-bold text-red-800 dark:text-red-200 uppercase tracking-wide">
               Excepción Detectada en Triggers de Base de Datos
             </h4>
-            <p className="text-xs font-semibold leading-relaxed text-red-700">
+            <p className="text-xs font-semibold leading-relaxed text-red-700 dark:text-red-400">
               {error.includes('|') ? error.split('|')[1] : error}
             </p>
-            <div className="text-[10px] text-red-500 font-mono mt-1 pt-1.5 border-t border-red-200/50">
+            <div className="text-[10px] text-red-500 dark:text-red-400 font-mono mt-1 pt-1.5 border-t border-red-200/50 dark:border-red-800/50">
               Código Error SQLSTATE: {error.includes('|') ? error.split('|')[0] : 'ERR_TRIGGER_VIOLATION'}
             </div>
           </div>
@@ -441,8 +456,8 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
       )}
 
       {formError && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl flex gap-2 items-center text-xs font-semibold">
-          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 p-4 rounded-xl flex gap-2 items-center text-xs font-semibold">
+          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
           <span>{formError}</span>
         </div>
       )}
@@ -452,33 +467,29 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
           
           {/* Column 1: Client & General details */}
           <div className="md:col-span-1 space-y-5">
-            <div className="bg-white p-5 rounded-2xl border border-slate-150 space-y-4 shadow-xs">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <UserIcon className="h-4 w-4 text-indigo-500" />
-                Cliente e Info General
-              </h3>
+            <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4 shadow-xs">
 
               {/* Client select */}
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700">Cliente Solicitante</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Cliente Solicitante</label>
                 
                 {/* Search input */}
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                    <Search className="h-3.5 w-3.5 text-slate-400" />
+                    <Search className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
                   </span>
                   <input
                     type="text"
                     placeholder="Filtrar cliente por nombre..."
                     value={clientSearch}
                     onChange={(e) => setClientSearch(e.target.value)}
-                    className="block w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-slate-900 text-xs font-medium placeholder-slate-400"
+                    className="block w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 text-xs font-medium placeholder-slate-400"
                   />
                   {clientSearch && (
                     <button
                       type="button"
                       onClick={() => setClientSearch('')}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 text-[10px] font-bold"
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-[10px] font-bold"
                     >
                       Limpiar
                     </button>
@@ -489,7 +500,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                   required
                   value={selectedClientId}
                   onChange={(e) => setSelectedClientId(e.target.value)}
-                  className="block w-full py-2 px-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-900 text-xs font-medium"
+                  className="block w-full py-2 px-3 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium"
                 >
                   <option value="">
                     {filteredClients.length === 0 ? 'Sin resultados' : 'Seleccione un cliente...'}
@@ -501,8 +512,8 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
 
                 {/* Mobile and quick-select touch suggestions */}
                 {clientSearch && filteredClients.length > 0 && (
-                  <div className="bg-indigo-50/40 p-2 rounded-xl space-y-1.5 border border-indigo-100/50">
-                    <span className="text-[9px] font-black uppercase text-indigo-700 tracking-wider block">Sugerencias (toca para seleccionar):</span>
+                  <div className="bg-indigo-50/40 dark:bg-indigo-900/20 p-2 rounded-xl space-y-1.5 border border-indigo-100/50 dark:border-indigo-800/30">
+                    <span className="text-[9px] font-black uppercase text-indigo-700 dark:text-indigo-400 tracking-wider block">Sugerencias (toca para seleccionar):</span>
                     <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
                       {filteredClients.slice(0, 3).map(c => (
                         <button
@@ -515,7 +526,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                           className={`w-full text-left text-[11px] p-1.5 rounded-lg border transition flex justify-between items-center ${
                             selectedClientId === c.id.toString()
                               ? 'bg-indigo-600 text-white border-indigo-600 font-bold'
-                              : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                              : 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                           }`}
                         >
                           <span className="truncate font-semibold">{c.full_name}</span>
@@ -526,14 +537,14 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                   </div>
                 )}
 
-                <span className="text-[9px] text-slate-400 block mt-1 leading-normal">
-                  * El backend creará un snapshot inmutable para el <code className="font-mono bg-slate-100 p-0.5 rounded">client_name</code>.
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 block mt-1 leading-normal">
+                  * El backend creará un snapshot inmutable para el <code className="font-mono bg-slate-100 dark:bg-slate-800 p-0.5 rounded">client_name</code>.
                 </span>
               </div>
 
               {/* Priority */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Prioridad del Pedido</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1 dark:text-slate-300">Prioridad del Pedido</label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {(['low', 'medium', 'high', 'urgent'] as const).map(p => {
                     const days = getDaysForPriority(p);
@@ -544,7 +555,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                         onClick={() => handlePriorityChange(p)}
                         className={`px-2 py-1.5 text-[10px] font-bold rounded-xl border transition uppercase flex flex-col items-center justify-center gap-0.5 ${
                           priority === p 
-                            ? 'bg-indigo-650 border-indigo-650 text-white shadow-sm'
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
                             : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                         }`}
                       >
@@ -561,7 +572,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
               {/* Dates */}
               <div className="space-y-3 pt-2 border-t border-slate-100">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1 dark:text-slate-300">
                     <CalendarIcon className="h-3.5 w-3.5 text-slate-400" />
                     Fecha Inicio en Taller
                   </label>
@@ -570,25 +581,25 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                     required
                     value={productionStartDate}
                     onChange={(e) => handleProductionStartDateChange(e.target.value)}
-                    className="block w-full py-2 px-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-slate-900 text-xs font-mono"
+                    className="block w-full py-2 px-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-slate-900 text-xs font-mono dark:text-slate-100 dark:border-slate-700 dark:bg-slate-800/50"
                   />
-                  <span className="text-[9px] text-indigo-600 block mt-1 font-medium">
+                  <span className="text-[9px] text-indigo-600 block mt-1 font-medium dark:text-indigo-400">
                     * Valida capacidad diaria de taller.
                   </span>
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="block text-xs font-bold text-slate-700 flex items-center gap-1">
+                    <label className="block text-xs font-bold text-slate-700 flex items-center gap-1 dark:text-slate-300">
                       <CalendarIcon className="h-3.5 w-3.5 text-slate-400" />
                       Fecha de Entrega Estimada
                     </label>
                     {estimatedDeliveryDate === calculateSuggestedDate(productionStartDate, priority) ? (
-                      <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 dark:text-emerald-300 dark:bg-emerald-900/40">
                         ✓ Sugerida
                       </span>
                     ) : (
-                      <span className="bg-amber-100 text-amber-800 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="bg-amber-100 text-amber-800 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 dark:text-amber-300 dark:bg-amber-900/40">
                         ✏ Manual
                       </span>
                     )}
@@ -598,12 +609,12 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                     required
                     value={estimatedDeliveryDate}
                     onChange={(e) => setEstimatedDeliveryDate(e.target.value)}
-                    className="block w-full py-2 px-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-slate-900 text-xs font-mono"
+                    className="block w-full py-2 px-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-slate-900 text-xs font-mono dark:text-slate-100 dark:border-slate-700 dark:bg-slate-800/50"
                   />
                   
                   {/* Interactive Date Suggestion Panel based on Priority */}
                   <div className="bg-slate-50/85 p-3 rounded-xl border border-slate-200/70 mt-2 space-y-1.5">
-                    <span className="text-[9px] font-bold text-slate-500 block uppercase tracking-wider">
+                    <span className="text-[9px] font-bold text-slate-500 block uppercase tracking-wider dark:text-slate-400">
                       Sugerencias por Prioridad:
                     </span>
                     <div className="grid grid-cols-2 gap-1.5">
@@ -651,7 +662,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                             setEstimatedDeliveryDate(calculateSuggestedDate(productionStartDate, priority));
                           }
                         }}
-                        className="w-full text-center text-[9px] text-indigo-600 hover:text-indigo-800 font-bold underline transition block pt-1"
+                        className="w-full text-center text-[9px] text-indigo-600 hover:text-indigo-800 font-bold underline transition block pt-1 dark:text-indigo-400"
                       >
                         Reestablecer a sugerida por prioridad ({formatDateSpanish(calculateSuggestedDate(productionStartDate, priority))})
                       </button>
@@ -662,20 +673,20 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
 
               {/* Notes */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Notas de Pedido</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1 dark:text-slate-300">Notas de Pedido</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Detalles sobre empaque, bordados..."
-                  className="block w-full p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-slate-900 text-xs h-20"
+                  className="block w-full p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-slate-900 text-xs h-20 dark:text-slate-100 dark:border-slate-700 dark:bg-slate-800/50"
                 />
               </div>
             </div>
 
             {/* Live Capacity Indicators */}
             {selectedProductId && productionStartDate && (
-              <div className="bg-white p-5 rounded-2xl border border-slate-150 space-y-3 shadow-xs">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-xs dark:bg-slate-800 dark:border-slate-700">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1 dark:text-slate-200">
                   <CheckCircle className="h-4 w-4 text-emerald-500" />
                   Capacidad de Taller Activa
                 </h4>
@@ -688,16 +699,16 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                       const remains = stage.max_capacity_points - stage.committed_points;
                       const hasCapacity = remains >= totalQty;
                       return (
-                        <div key={idx} className="space-y-1 p-2 rounded-lg bg-slate-50 border border-slate-150">
+                        <div key={idx} className="space-y-1 p-2 rounded-lg bg-slate-50 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
                           <div className="flex justify-between font-semibold">
-                            <span className="text-slate-700 uppercase">Etapa: {stage.stage_id === 1 ? 'Corte' : stage.stage_id === 2 ? 'Costura' : stage.stage_id === 3 ? 'Bordado' : stage.stage_id === 4 ? 'Planchado' : 'Empaque'}</span>
+                            <span className="text-slate-700 uppercase dark:text-slate-300">Etapa: {stage.stage_id === 1 ? 'Corte' : stage.stage_id === 2 ? 'Costura' : stage.stage_id === 3 ? 'Bordado' : stage.stage_id === 4 ? 'Planchado' : 'Empaque'}</span>
                             <span className={hasCapacity ? 'text-emerald-700' : 'text-red-700'}>
                               {remains} pts disp
                             </span>
                           </div>
-                          <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                          <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden dark:bg-slate-700">
                             <div 
-                              className={`h-full transition-all duration-300 ${hasCapacity ? 'bg-indigo-650' : 'bg-red-500'}`}
+                              className={`h-full transition-all duration-300 ${hasCapacity ? 'bg-indigo-600' : 'bg-red-500'}`}
                               style={{ width: `${Math.min(100, (stage.committed_points / stage.max_capacity_points) * 100)}%` }}
                             />
                           </div>
@@ -710,7 +721,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                     })}
                   </div>
                 ) : (
-                  <span className="text-xs text-red-500 block font-medium">¡Sin definir capacidad para esta fecha!</span>
+                  <span className="text-xs text-red-500 block font-medium dark:text-red-400">¡Sin definir capacidad para esta fecha!</span>
                 )}
               </div>
             )}
@@ -718,33 +729,33 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
 
           {/* Column 2: Product & Custom Details */}
           <div className="md:col-span-2 space-y-5">
-            <div className="bg-white p-6 rounded-3xl border border-slate-150 space-y-6 shadow-xs">
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 space-y-6 shadow-xs dark:bg-slate-800 dark:border-slate-700">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Layers className="h-4 w-4 text-indigo-500" />
+                <Layers className="h-4 w-4 text-indigo-500 dark:text-indigo-300" />
                 Especificaciones de Producción
               </h3>
 
               {/* Product selector */}
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700">Producto del Catálogo</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Producto del Catálogo</label>
                 
                 {/* Search input */}
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                    <Search className="h-3.5 w-3.5 text-slate-400" />
+                    <Search className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
                   </span>
                   <input
                     type="text"
                     placeholder="Filtrar producto por nombre..."
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
-                    className="block w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-slate-900 text-xs font-semibold placeholder-slate-400"
+                    className="block w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500"
                   />
                   {productSearch && (
                     <button
                       type="button"
                       onClick={() => setProductSearch('')}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 text-[10px] font-bold"
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-[10px] font-bold"
                     >
                       Limpiar
                     </button>
@@ -755,7 +766,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                   required
                   value={selectedProductId}
                   onChange={(e) => setSelectedProductId(e.target.value)}
-                  className="block w-full py-2.5 px-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-900 text-xs font-semibold"
+                  className="block w-full py-2.5 px-3 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold"
                 >
                   <option value="">
                     {filteredProducts.length === 0 ? 'Sin resultados' : 'Seleccione un producto para configurar...'}
@@ -767,8 +778,8 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
 
                 {/* Mobile and quick-select touch suggestions */}
                 {productSearch && filteredProducts.length > 0 && (
-                  <div className="bg-indigo-50/40 p-2 rounded-xl space-y-1.5 border border-indigo-100/50">
-                    <span className="text-[9px] font-black uppercase text-indigo-700 tracking-wider block">Sugerencias (toca para seleccionar):</span>
+                  <div className="bg-indigo-50/40 dark:bg-indigo-900/20 p-2 rounded-xl space-y-1.5 border border-indigo-100/50 dark:border-indigo-800/30">
+                    <span className="text-[9px] font-black uppercase text-indigo-700 dark:text-indigo-400 tracking-wider block">Sugerencias (toca para seleccionar):</span>
                     <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
                       {filteredProducts.slice(0, 3).map(p => (
                         <button
@@ -781,7 +792,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                           className={`w-full text-left text-[11px] p-1.5 rounded-lg border transition flex justify-between items-center ${
                             selectedProductId === p.id.toString()
                               ? 'bg-indigo-600 text-white border-indigo-600 font-bold'
-                              : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                              : 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                           }`}
                         >
                           <span className="truncate font-semibold">{p.name}</span>
@@ -797,7 +808,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                 <div className="space-y-6 border-t border-slate-100 pt-5">
                   {/* Dynamic Sizes Matrix */}
                   <div>
-                    <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                    <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 dark:text-slate-400">
                       Matriz de Tallas (Cantidades)
                     </h4>
                     
@@ -805,15 +816,15 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                       {/* Tallas de Hombre */}
                       {sizes.filter(sz => sz.size_gender === 'hombre' || sz.size_code?.startsWith('H-')).length > 0 && (
                         <div>
-                          <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider block mb-1.5 bg-indigo-50/50 py-1 px-2.5 rounded-lg w-max">
+                          <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block mb-1.5 bg-indigo-50/50 dark:bg-indigo-900/20 py-1 px-2.5 rounded-lg w-max">
                             👔 Colección de Caballeros
                           </span>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                             {sizes.filter(sz => sz.size_gender === 'hombre' || sz.size_code?.startsWith('H-')).map((sz) => (
-                              <div key={sz.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex flex-col justify-between">
+                              <div key={sz.id} className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 flex flex-col justify-between">
                                 <div>
-                                  <span className="text-xs font-black text-slate-800 block uppercase">{sz.size_code || 'Talla'}</span>
-                                  <span className="text-[10px] text-slate-400 block truncate">{sz.size_name || 'Nombre'}</span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-200 block uppercase">{sz.size_code || 'Talla'}</span>
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">{sz.size_name || 'Nombre'}</span>
                                 </div>
                                 <div className="mt-2.5">
                                   <input
@@ -822,9 +833,9 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                                     value={sizeQuantities[sz.id] || ''}
                                     onChange={(e) => handleQtyChange(sz.id, parseInt(e.target.value, 10) || 0)}
                                     placeholder="0"
-                                    className="block w-full py-1 px-2 border border-slate-200 rounded-lg text-xs font-bold text-center bg-white"
+                                    className="block w-full py-1 px-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-center bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                                   />
-                                  <span className="text-[9px] text-indigo-600 block text-center mt-1 font-medium">
+                                  <span className="text-[9px] text-indigo-600 dark:text-indigo-400 block text-center mt-1 font-medium">
                                     {Number(sz.price_modifier) > 0 ? `+$${parseFloat(sz.price_modifier as any).toFixed(2)}` : 'Sin cargo'}
                                   </span>
                                 </div>
@@ -837,15 +848,15 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                       {/* Tallas de Mujer */}
                       {sizes.filter(sz => sz.size_gender === 'mujer' || sz.size_code?.startsWith('M-')).length > 0 && (
                         <div>
-                          <span className="text-[10px] font-bold text-pink-600 uppercase tracking-wider block mb-1.5 bg-pink-50/50 py-1 px-2.5 rounded-lg w-max">
+                          <span className="text-[10px] font-bold text-pink-600 dark:text-pink-400 uppercase tracking-wider block mb-1.5 bg-pink-50/50 dark:bg-pink-900/20 py-1 px-2.5 rounded-lg w-max">
                             👚 Colección de Damas
                           </span>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                             {sizes.filter(sz => sz.size_gender === 'mujer' || sz.size_code?.startsWith('M-')).map((sz) => (
-                              <div key={sz.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex flex-col justify-between">
+                              <div key={sz.id} className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 flex flex-col justify-between">
                                 <div>
-                                  <span className="text-xs font-black text-slate-800 block uppercase">{sz.size_code || 'Talla'}</span>
-                                  <span className="text-[10px] text-slate-400 block truncate">{sz.size_name || 'Nombre'}</span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-200 block uppercase">{sz.size_code || 'Talla'}</span>
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">{sz.size_name || 'Nombre'}</span>
                                 </div>
                                 <div className="mt-2.5">
                                   <input
@@ -854,9 +865,9 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                                     value={sizeQuantities[sz.id] || ''}
                                     onChange={(e) => handleQtyChange(sz.id, parseInt(e.target.value, 10) || 0)}
                                     placeholder="0"
-                                    className="block w-full py-1 px-2 border border-slate-200 rounded-lg text-xs font-bold text-center bg-white"
+                                    className="block w-full py-1 px-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-center bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                                   />
-                                  <span className="text-[9px] text-indigo-600 block text-center mt-1 font-medium">
+                                  <span className="text-[9px] text-indigo-600 dark:text-indigo-400 block text-center mt-1 font-medium">
                                     {Number(sz.price_modifier) > 0 ? `+$${parseFloat(sz.price_modifier as any).toFixed(2)}` : 'Sin cargo'}
                                   </span>
                                 </div>
@@ -874,7 +885,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                         !sz.size_code?.startsWith('M-')
                       ).length > 0 && (
                         <div>
-                          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5 bg-slate-100 py-1 px-2.5 rounded-lg w-max">
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block mb-1.5 bg-slate-100 dark:bg-slate-800 py-1 px-2.5 rounded-lg w-max">
                             🌐 Colección Estándar / Unisex
                           </span>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -884,10 +895,10 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                               !sz.size_code?.startsWith('H-') && 
                               !sz.size_code?.startsWith('M-')
                             ).map((sz) => (
-                              <div key={sz.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex flex-col justify-between">
+                              <div key={sz.id} className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 flex flex-col justify-between">
                                 <div>
-                                  <span className="text-xs font-black text-slate-800 block uppercase">{sz.size_code || 'Talla'}</span>
-                                  <span className="text-[10px] text-slate-400 block truncate">{sz.size_name || 'Nombre'}</span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-200 block uppercase">{sz.size_code || 'Talla'}</span>
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">{sz.size_name || 'Nombre'}</span>
                                 </div>
                                 <div className="mt-2.5">
                                   <input
@@ -896,9 +907,9 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                                     value={sizeQuantities[sz.id] || ''}
                                     onChange={(e) => handleQtyChange(sz.id, parseInt(e.target.value, 10) || 0)}
                                     placeholder="0"
-                                    className="block w-full py-1 px-2 border border-slate-200 rounded-lg text-xs font-bold text-center bg-white"
+                                    className="block w-full py-1 px-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-center bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                                   />
-                                  <span className="text-[9px] text-indigo-600 block text-center mt-1 font-medium">
+                                  <span className="text-[9px] text-indigo-600 dark:text-indigo-400 block text-center mt-1 font-medium">
                                     {Number(sz.price_modifier) > 0 ? `+$${parseFloat(sz.price_modifier as any).toFixed(2)}` : 'Sin cargo'}
                                   </span>
                                 </div>
@@ -912,53 +923,53 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
 
                   {/* Dynamic Attributes */}
                   {attributes.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                    <div className="border-t border-slate-100 dark:border-slate-700 pt-5">
+                      <h4 className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
                         Atributos y Personalizaciones
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {attributes.map((attr) => {
                           const selection = attributeSelections[attr.id] || { attribute_value_id: null, custom_value: null };
                           return (
-                            <div key={attr.id} className="p-3 border border-slate-150 rounded-2xl space-y-1.5 bg-slate-50/50">
-                              <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                            <div key={attr.id} className="p-3 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-1.5 bg-slate-50/50 dark:bg-slate-800/50">
+                              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                                 <span>{attr.attribute_name}</span>
-                                {attr.is_required && <span className="text-[9px] font-bold text-red-500">Obligatorio</span>}
+                                {attr.is_required && <span className="text-[9px] font-bold text-red-500 dark:text-red-400">Obligatorio</span>}
                               </label>
 
                               {attr.requires_catalog_value ? (
-                                <select
+<select
+                                required={attr.is_required}
+                                value={selection.attribute_value_id || ''}
+                                onChange={(e) => handleAttrChange(attr.id, parseInt(e.target.value, 10) || null, null)}
+                                className="block w-full py-1.5 px-2.5 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-xs font-medium text-slate-800 dark:text-slate-200"
+                              >
+                                <option value="">Seleccione opción...</option>
+                                {attr.values?.map((val) => (
+                                  <option key={val.id} value={val.id}>
+                                    {val.value} {Number(val.price_modifier) > 0 ? `(+$${parseFloat(val.price_modifier as any).toFixed(2)})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <div className="space-y-1">
+                                <input
+                                  type="text"
                                   required={attr.is_required}
-                                  value={selection.attribute_value_id || ''}
-                                  onChange={(e) => handleAttrChange(attr.id, parseInt(e.target.value, 10) || null, null)}
-                                  className="block w-full py-1.5 px-2.5 border border-slate-200 rounded-xl bg-white text-xs font-medium text-slate-800"
-                                >
-                                  <option value="">Seleccione opción...</option>
-                                  {attr.values?.map((val) => (
-                                    <option key={val.id} value={val.id}>
-                                      {val.value} {Number(val.price_modifier) > 0 ? `(+$${parseFloat(val.price_modifier as any).toFixed(2)})` : ''}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <div className="space-y-1">
-                                  <input
-                                    type="text"
-                                    required={attr.is_required}
-                                    value={selection.custom_value || ''}
-                                    onChange={(e) => handleAttrChange(attr.id, null, e.target.value)}
-                                    placeholder="Escriba especificación libre..."
-                                    className="block w-full py-1.5 px-2.5 border border-slate-200 rounded-xl bg-white text-xs font-medium text-slate-800"
-                                  />
-                                  {attr.attribute_name.toLowerCase().includes('bordado') && (
-                                    <span className="text-[10px] text-amber-600 font-semibold block leading-none">
-                                      {selection.custom_value && selection.custom_value.trim() !== '' 
-                                        ? '✓ Recargo por bordado personalizado aplicado: +$2.50' 
-                                        : '* El bordado personalizado tiene un recargo de +$2.50'}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                                  value={selection.custom_value || ''}
+                                  onChange={(e) => handleAttrChange(attr.id, null, e.target.value)}
+                                  placeholder="Escriba especificación libre..."
+                                  className="block w-full py-1.5 px-2.5 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-xs font-medium text-slate-800 dark:text-slate-200"
+                                />
+                                {attr.attribute_name.toLowerCase().includes('bordado') && (
+                                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block leading-none">
+                                    {selection.custom_value && selection.custom_value.trim() !== '' 
+                                      ? '✓ Recargo por bordado personalizado aplicado: +$2.50' 
+                                      : '* El bordado personalizado tiene un recargo de +$2.50'}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                             </div>
                           );
                         })}
@@ -968,7 +979,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
 
                   {/* Embroidery files attachment */}
                   <div>
-                    <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                    <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 dark:text-slate-400">
                       Subida de Logotipos y Bordados Adjuntos
                     </h4>
                     
@@ -1006,17 +1017,17 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
 
                       {/* Presets quick select */}
                       <div>
-                        <span className="text-[10px] text-slate-400 block mb-1 font-bold">Logos de Prueba Disponibles:</span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block mb-1 font-bold">Logos de Prueba Disponibles:</span>
                         <div className="grid grid-cols-3 gap-2">
                           {presetsLogos.map((logo, index) => (
                             <button
                               key={index}
                               type="button"
                               onClick={() => addAttachment(logo.url)}
-                              className="px-2.5 py-1.5 border border-slate-200 rounded-xl text-left hover:bg-slate-50 transition text-[10px] flex items-center justify-between"
+                              className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-xl text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition text-[10px] flex items-center justify-between"
                             >
-                              <span className="truncate pr-1 font-medium text-slate-600">{logo.name}</span>
-                              <Plus className="h-3 w-3 shrink-0 text-indigo-600" />
+                              <span className="truncate pr-1 font-medium text-slate-600 dark:text-slate-400">{logo.name}</span>
+                              <Plus className="h-3 w-3 shrink-0 text-indigo-600 dark:text-indigo-400" />
                             </button>
                           ))}
                         </div>
@@ -1026,7 +1037,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                       {attachedFiles.length > 0 && (
                         <div className="grid grid-cols-3 gap-3 pt-2">
                           {attachedFiles.map((file, idx) => (
-                            <div key={idx} className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-50 group">
+                            <div key={idx} className="relative rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-50 dark:bg-slate-800/50 group">
                               <img src={file.file_url} referrerPolicy="no-referrer" alt="Adjunto" className="h-20 w-full object-cover" />
                               <button
                                 type="button"
@@ -1068,7 +1079,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="px-5 py-2.5 border border-slate-250 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-50 transition"
+                  className="px-5 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm font-semibold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition"
                 >
                   Cancelar
                 </button>

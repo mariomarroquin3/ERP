@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Invoice, Order } from '../types';
 import { QRCodeCanvas } from 'qrcode.react';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface InvoiceDocumentProps {
   invoice: Invoice;
@@ -246,8 +247,8 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({ invoice, order
 
   return (
     <div className="fixed inset-0 z-[99999] bg-slate-950/70 backdrop-blur-sm flex justify-center items-start overflow-y-auto p-4">
-      <div className="bg-white max-w-[1000px] w-full my-4 rounded-xl shadow-2xl overflow-hidden relative border border-slate-200">
-        <div className="flex justify-end items-center bg-slate-50 p-4 border-b border-slate-200 print:hidden sticky top-0 z-10">
+      <div className="bg-white max-w-[1000px] w-full my-4 rounded-xl shadow-2xl overflow-hidden relative border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+        <div className="flex justify-end items-center bg-slate-50 p-4 border-b border-slate-200 print:hidden sticky top-0 z-10 dark:bg-slate-800/50 dark:border-slate-700">
           <div className="flex flex-wrap gap-3">
             <button
               onClick={handleExport}
@@ -257,7 +258,7 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({ invoice, order
             </button>
             <button
               onClick={onClose}
-              className="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-5 py-2 rounded-lg font-bold shadow-sm transition-all text-sm"
+              className="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-5 py-2 rounded-lg font-bold shadow-sm transition-all text-sm dark:text-slate-300 dark:bg-slate-800 dark:border-slate-600"
             >
               Cerrar
             </button>
@@ -265,7 +266,7 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({ invoice, order
         </div>
 
         {/* FACTURA UI MOCKUP */}
-        <div className="p-10 bg-white text-black font-sans text-[11px] leading-tight">
+        <div className="p-10 bg-white text-black font-sans text-[11px] leading-tight dark:bg-slate-800">
           
           <div className="flex justify-between items-start mb-6">
             <div className="w-2/5">
@@ -341,108 +342,108 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({ invoice, order
             </div>
           </div>
 
-          <div className="border border-gray-300 rounded overflow-hidden">
+          <div className="border border-gray-300 rounded overflow-hidden dark:border-slate-600">
             <table className="w-full text-left border-collapse text-[10px]">
-              <thead className="bg-gray-200 border-b border-gray-300">
+              <thead className="bg-gray-200 border-b border-gray-300 dark:bg-slate-700 dark:border-slate-600">
                 <tr>
-                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold">No.</th>
-                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold">Cantidad</th>
-                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold">Unidad</th>
-                  <th className="py-1 px-2 border-r border-gray-300 font-bold">Descripción</th>
-                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold leading-tight">Precio<br/>Unitario</th>
-                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold leading-tight">Descuento<br/>por ítem</th>
-                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold leading-tight">Otros montos<br/>no afectos</th>
-                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold leading-tight">Ventas<br/>no sujetas</th>
-                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold leading-tight">Ventas<br/>exentas</th>
+                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold dark:border-slate-600">No.</th>
+                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold dark:border-slate-600">Cantidad</th>
+                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold dark:border-slate-600">Unidad</th>
+                  <th className="py-1 px-2 border-r border-gray-300 font-bold dark:border-slate-600">Descripción</th>
+                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold leading-tight dark:border-slate-600">Precio<br/>Unitario</th>
+                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold leading-tight dark:border-slate-600">Descuento<br/>por ítem</th>
+                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold leading-tight dark:border-slate-600">Otros montos<br/>no afectos</th>
+                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold leading-tight dark:border-slate-600">Ventas<br/>no sujetas</th>
+                  <th className="py-1 px-1 text-center border-r border-gray-300 font-bold leading-tight dark:border-slate-600">Ventas<br/>exentas</th>
                   <th className="py-1 px-1 text-center font-bold leading-tight">Ventas<br/>gravadas</th>
                 </tr>
               </thead>
               <tbody>
                 {order?.items && order.items.length > 0 ? (
                   order.items.map((item, index) => (
-                    <tr key={index} className="border-b border-gray-200 last:border-0">
-                      <td className="py-1 px-1 text-center border-r border-gray-200">{index + 1}</td>
-                      <td className="py-1 px-1 text-center border-r border-gray-200">{item.quantity}</td>
-                      <td className="py-1 px-1 text-center border-r border-gray-200">Unidad</td>
-                      <td className="py-1 px-2 border-r border-gray-200">
+                    <tr key={index} className="border-b border-gray-200 last:border-0 dark:border-slate-700">
+                      <td className="py-1 px-1 text-center border-r border-gray-200 dark:border-slate-700">{index + 1}</td>
+                      <td className="py-1 px-1 text-center border-r border-gray-200 dark:border-slate-700">{item.quantity}</td>
+                      <td className="py-1 px-1 text-center border-r border-gray-200 dark:border-slate-700">Unidad</td>
+                      <td className="py-1 px-2 border-r border-gray-200 dark:border-slate-700">
                         <div className="font-semibold uppercase">{item.product_name || `Producto #${item.product_id}`}</div>
                         {item.attributes && item.attributes.length > 0 && (
-                          <div className="text-[9px] text-gray-500 mt-0.5">{item.attributes.map((attr) => attr.value_label).join(', ')}</div>
+                          <div className="text-[9px] text-gray-500 mt-0.5 dark:text-slate-400">{item.attributes.map((attr) => attr.value_label).join(', ')}</div>
                         )}
                       </td>
-                      <td className="py-1 px-1 text-right border-r border-gray-200">{formatCurrency(item.unit_price)}</td>
-                      <td className="py-1 px-1 text-right border-r border-gray-200">$0.00</td>
-                      <td className="py-1 px-1 text-right border-r border-gray-200">$0.00</td>
-                      <td className="py-1 px-1 text-right border-r border-gray-200">$0.00</td>
-                      <td className="py-1 px-1 text-right border-r border-gray-200">$0.00</td>
+                      <td className="py-1 px-1 text-right border-r border-gray-200 dark:border-slate-700">{formatCurrency(item.unit_price)}</td>
+                      <td className="py-1 px-1 text-right border-r border-gray-200 dark:border-slate-700">$0.00</td>
+                      <td className="py-1 px-1 text-right border-r border-gray-200 dark:border-slate-700">$0.00</td>
+                      <td className="py-1 px-1 text-right border-r border-gray-200 dark:border-slate-700">$0.00</td>
+                      <td className="py-1 px-1 text-right border-r border-gray-200 dark:border-slate-700">$0.00</td>
                       <td className="py-1 px-1 text-right font-bold">{formatCurrencyTotal(item.subtotal)}</td>
                     </tr>
                   ))
                 ) : (
-                  <tr className="border-b border-gray-200">
-                    <td colSpan={10} className="py-4 text-center text-gray-500 font-semibold">Productos del pedido</td>
+                  <tr className="border-b border-gray-200 dark:border-slate-700">
+                    <td colSpan={10} className="py-4 text-center text-gray-500 font-semibold dark:text-slate-400">Productos del pedido</td>
                   </tr>
                 )}
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={7} className="border-r border-gray-200 border-t border-gray-200"></td>
-                  <td colSpan={2} className="py-1 px-1 text-right border-r border-t border-gray-200 font-bold">Suma de ventas:</td>
-                  <td className="py-1 px-1 text-right border-t border-gray-200 font-bold">{formatCurrencyTotal(Number(invoice.subtotal))}</td>
+                  <td colSpan={7} className="border-r border-gray-200 border-t border-gray-200 dark:border-slate-700"></td>
+                  <td colSpan={2} className="py-1 px-1 text-right border-r border-t border-gray-200 font-bold dark:border-slate-700">Suma de ventas:</td>
+                  <td className="py-1 px-1 text-right border-t border-gray-200 font-bold dark:border-slate-700">{formatCurrencyTotal(Number(invoice.subtotal))}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
 
           <div className="flex mt-0 text-[10px]">
-            <div className="w-[55%] flex flex-col items-center justify-end pb-8 border border-gray-300 border-t-0 border-r-0">
+            <div className="w-[55%] flex flex-col items-center justify-end pb-8 border border-gray-300 border-t-0 border-r-0 dark:border-slate-600">
             </div>
             <div className="w-[45%]">
               <table className="w-full border-collapse">
                 <tbody>
                   <tr>
-                    <td className="border border-gray-300 px-2 py-1 text-right font-bold w-[70%]">Suma total de operaciones:</td>
-                    <td className="border border-gray-300 px-2 py-1 text-right w-[30%]">{formatCurrencyTotal(Number(invoice.subtotal))}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right font-bold w-[70%] dark:border-slate-600">Suma total de operaciones:</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right w-[30%] dark:border-slate-600">{formatCurrencyTotal(Number(invoice.subtotal))}</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-2 py-1 text-right font-bold text-[9px]">Monto global Desc., Rebajas y otros a ventas no sujetas:</td>
-                    <td className="border border-gray-300 px-2 py-1 text-right">$0.00</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right font-bold text-[9px] dark:border-slate-600">Monto global Desc., Rebajas y otros a ventas no sujetas:</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right dark:border-slate-600">$0.00</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-2 py-1 text-right font-bold text-[9px]">Monto global Desc., Rebajas y otros a ventas exentas:</td>
-                    <td className="border border-gray-300 px-2 py-1 text-right">$0.00</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right font-bold text-[9px] dark:border-slate-600">Monto global Desc., Rebajas y otros a ventas exentas:</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right dark:border-slate-600">$0.00</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-2 py-1 text-right font-bold text-[9px]">Monto global Desc., Rebajas y otros a ventas gravadas:</td>
-                    <td className="border border-gray-300 px-2 py-1 text-right">{formatCurrencyTotal(Number(invoice.discount))}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right font-bold text-[9px] dark:border-slate-600">Monto global Desc., Rebajas y otros a ventas gravadas:</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right dark:border-slate-600">{formatCurrencyTotal(Number(invoice.discount))}</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-2 py-1 text-right font-bold">Sub-Total:</td>
-                    <td className="border border-gray-300 px-2 py-1 text-right">{formatCurrencyTotal(Number(invoice.subtotal) - Number(invoice.discount))}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right font-bold dark:border-slate-600">Sub-Total:</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right dark:border-slate-600">{formatCurrencyTotal(Number(invoice.subtotal) - Number(invoice.discount))}</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-2 py-1 text-right font-bold">Impuesto al valor agregado (IVA 13%):</td>
-                    <td className="border border-gray-300 px-2 py-1 text-right">{formatCurrencyTotal(Number(invoice.tax))}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right font-bold dark:border-slate-600">Impuesto al valor agregado (IVA 13%):</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right dark:border-slate-600">{formatCurrencyTotal(Number(invoice.tax))}</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-2 py-1 text-right font-bold">IVA retenido:</td>
-                    <td className="border border-gray-300 px-2 py-1 text-right">{formatCurrencyTotal(Number(invoice.iva_retenido || 0))}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right font-bold dark:border-slate-600">IVA retenido:</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right dark:border-slate-600">{formatCurrencyTotal(Number(invoice.iva_retenido || 0))}</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-2 py-1 text-right font-bold">IVA percibido:</td>
-                    <td className="border border-gray-300 px-2 py-1 text-right">{formatCurrencyTotal(Number(invoice.iva_percibido || 0))}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right font-bold dark:border-slate-600">IVA percibido:</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right dark:border-slate-600">{formatCurrencyTotal(Number(invoice.iva_percibido || 0))}</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-2 py-1 text-right font-bold">Retención renta:</td>
-                    <td className="border border-gray-300 px-2 py-1 text-right">{formatCurrencyTotal(Number(invoice.retencion_renta || 0))}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right font-bold dark:border-slate-600">Retención renta:</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right dark:border-slate-600">{formatCurrencyTotal(Number(invoice.retencion_renta || 0))}</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-2 py-1 text-right font-bold bg-gray-100">Monto total de la operación:</td>
-                    <td className="border border-gray-300 px-2 py-1 text-right font-bold bg-gray-100">{formatCurrencyTotal(Number(invoice.total))}</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right font-bold bg-gray-100 dark:bg-slate-800 dark:border-slate-600">Monto total de la operación:</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right font-bold bg-gray-100 dark:bg-slate-800 dark:border-slate-600">{formatCurrencyTotal(Number(invoice.total))}</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-2 py-1 text-right font-bold">Total otros montos no afectos:</td>
-                    <td className="border border-gray-300 px-2 py-1 text-right">$0.00</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right font-bold dark:border-slate-600">Total otros montos no afectos:</td>
+                    <td className="border border-gray-300 px-2 py-1 text-right dark:border-slate-600">$0.00</td>
                   </tr>
                 </tbody>
               </table>

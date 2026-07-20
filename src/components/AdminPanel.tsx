@@ -17,17 +17,21 @@ import {
   ShieldCheck,
   Users,
   Lock,
-  UserPlus
+  UserPlus,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, Size, WorkCalendar } from '../types';
 import { toast } from 'sonner';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface AdminPanelProps {
   token: string;
 }
 
 export default function AdminPanel({ token }: AdminPanelProps) {
+  const { theme, toggleTheme } = useTheme();
   const [subTab, setSubTab] = useState<'capacity' | 'products' | 'access'>('capacity');
   
   // Capacity States
@@ -611,47 +615,58 @@ export default function AdminPanel({ token }: AdminPanelProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 dark:border-slate-700 pb-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Settings className="h-6 w-6 text-indigo-600" />
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
+            <Settings className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
             Módulo de Administración General
           </h2>
-          <p className="text-slate-500 text-sm font-medium">Parámetros de capacidad relacional y configuración inmutable de catálogos de maquila</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Parámetros de capacidad relacional y configuración inmutable de catálogos de maquila</p>
         </div>
 
-        {/* Local tab switches */}
-        <div className="flex flex-wrap gap-1.5 bg-slate-100 p-1 rounded-xl">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Theme Toggle */}
           <button
-            onClick={() => setSubTab('capacity')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
-              subTab === 'capacity' ? 'bg-white text-indigo-750 shadow-sm' : 'text-slate-600 hover:bg-slate-50'
-            }`}
+            onClick={toggleTheme}
+            className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-100 transition"
+            title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
           >
-            Capacidad de Taller
+            {theme === 'dark' ? <Sun className="h-5 w-5 text-amber-500" /> : <Moon className="h-5 w-5" />}
           </button>
-          <button
-            onClick={() => setSubTab('products')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
-              subTab === 'products' ? 'bg-white text-indigo-750 shadow-sm' : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            Catálogos y Tallas
-          </button>
-          <button
-            onClick={() => setSubTab('access')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
-              subTab === 'access' ? 'bg-white text-indigo-750 shadow-sm' : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            Control de Acceso
-          </button>
+
+          {/* Local tab switches */}
+          <div className="flex flex-wrap gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+            <button
+              onClick={() => setSubTab('capacity')}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
+                subTab === 'capacity' ? 'bg-white dark:bg-slate-800 text-indigo-750 dark:text-indigo-400 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+              }`}
+            >
+              Capacidad de Taller
+            </button>
+            <button
+              onClick={() => setSubTab('products')}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
+                subTab === 'products' ? 'bg-white dark:bg-slate-800 text-indigo-750 dark:text-indigo-400 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+              }`}
+            >
+              Catálogos y Tallas
+            </button>
+            <button
+              onClick={() => setSubTab('access')}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
+                subTab === 'access' ? 'bg-white dark:bg-slate-800 text-indigo-750 dark:text-indigo-400 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+              }`}
+            >
+              Control de Acceso
+            </button>
+          </div>
         </div>
       </div>
 
       {successMsg && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl flex gap-2 items-center text-xs font-semibold shadow-xs">
-          <CheckCircle className="h-4.5 w-4.5 text-emerald-600 shrink-0" />
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl flex gap-2 items-center text-xs font-semibold shadow-xs dark:text-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-800">
+          <CheckCircle className="h-4.5 w-4.5 text-emerald-600 shrink-0 dark:text-emerald-400" />
           <span>{successMsg}</span>
         </div>
       )}
@@ -659,10 +674,10 @@ export default function AdminPanel({ token }: AdminPanelProps) {
       {/* SUB-TAB 1: CAPACIDAD CALENDAR MANAGER */}
       {subTab === 'capacity' && (
         <div className="space-y-6">
-          <div className="bg-indigo-50/50 p-5 border border-indigo-150 rounded-2xl flex gap-3 items-start">
-            <Info className="h-5 w-5 text-indigo-650 shrink-0 mt-0.5" />
-            <div className="text-xs text-indigo-800 leading-normal font-medium">
-              <strong className="text-indigo-900 font-bold">Gestión de Calendario Laboral:</strong> Defina el límite de puntos de capacidad diarios para cada una de las 10 etapas de la línea de producción. Los pedidos entrantes distribuirán y restarán estos puntos en tiempo real para evitar cuellos de botella en el taller.
+          <div className="bg-indigo-50/50 p-5 border border-indigo-200 rounded-2xl flex gap-3 items-start dark:bg-indigo-900/30">
+            <Info className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+            <div className="text-xs text-indigo-800 leading-normal font-medium dark:text-indigo-200">
+              <strong className="text-indigo-900 font-bold dark:text-indigo-100">Gestión de Calendario Laboral:</strong> Defina el límite de puntos de capacidad diarios para cada una de las 10 etapas de la línea de producción. Los pedidos entrantes distribuirán y restarán estos puntos en tiempo real para evitar cuellos de botella en el taller.
             </div>
           </div>
 
@@ -671,13 +686,13 @@ export default function AdminPanel({ token }: AdminPanelProps) {
               <div 
                 key={dayConfig.date} 
                 className={`bg-white border rounded-2xl p-5 shadow-xs transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${
-                  dayConfig.isWorking ? 'border-slate-200' : 'border-slate-150 bg-slate-50/50 opacity-70'
+                  dayConfig.isWorking ? 'border-slate-200' : 'border-slate-200 bg-slate-50/50 opacity-70'
                 }`}
               >
                 <div>
                   <span className="text-xs text-slate-400 font-bold block uppercase font-mono">FECHA DE CALENDARIO</span>
-                  <strong className="text-slate-800 font-black text-sm">{dayConfig.date}</strong>
-                  {dayConfig.notes && <span className="text-[10px] text-red-500 font-medium block mt-1">*{dayConfig.notes}</span>}
+                  <strong className="text-slate-800 font-black text-sm dark:text-slate-200">{dayConfig.date}</strong>
+                  {dayConfig.notes && <span className="text-[10px] text-red-500 font-medium block mt-1 dark:text-red-400">*{dayConfig.notes}</span>}
                 </div>
 
                 {/* Stages values inputs */}
@@ -701,7 +716,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                           type="number"
                           value={dayConfig.stages[stage.id] || ''}
                           onChange={(e) => handleStagePointChange(dayIdx, stage.id, parseInt(e.target.value, 10) || 0)}
-                          className="w-full border border-slate-200 rounded-xl py-1 px-1.5 text-xs font-bold text-slate-800 bg-slate-50/50"
+                          className="w-full border border-slate-200 rounded-xl py-1 px-1.5 text-xs font-bold text-slate-800 bg-slate-50/50 dark:text-slate-200 dark:border-slate-700 dark:bg-slate-800/50"
                         />
                       </div>
                     ))}
@@ -743,8 +758,8 @@ export default function AdminPanel({ token }: AdminPanelProps) {
       {subTab === 'products' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-              <Database className="h-5 w-5 text-indigo-500" />
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5 dark:text-slate-200">
+              <Database className="h-5 w-5 text-indigo-500 dark:text-indigo-300" />
               Catálogo de Productos Disponibles
             </h3>
             <button
@@ -766,7 +781,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
               placeholder="Buscar producto por nombre o ID..."
               value={catalogSearch}
               onChange={(e) => setCatalogSearch(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-900 text-xs font-semibold placeholder-slate-400 shadow-xs"
+              className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-900 text-xs font-semibold placeholder-slate-400 shadow-xs dark:text-slate-100 dark:bg-slate-800 dark:border-slate-700"
             />
             {catalogSearch && (
               <button
@@ -784,7 +799,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
               const term = catalogSearch.toLowerCase();
               return p.name.toLowerCase().includes(term) || p.id.toString().includes(term);
             }).length === 0 ? (
-              <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-xs font-medium">
+              <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-xs font-medium dark:bg-slate-800/50 dark:border-slate-700">
                 No se encontraron productos que coincidan con la búsqueda.
               </div>
             ) : (
@@ -794,7 +809,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                   return p.name.toLowerCase().includes(term) || p.id.toString().includes(term);
                 })
                 .map((p) => (
-                  <div key={p.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div key={p.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4 dark:bg-slate-800 dark:border-slate-700">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-bold text-slate-400 font-mono">PRODUCTO #{p.id}</span>
@@ -802,8 +817,8 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                           {p.active ? 'Activo' : 'Inactivo'}
                         </span>
                       </div>
-                      <strong className="text-slate-800 font-bold text-base block leading-tight">{p.name}</strong>
-                      <div className="text-xs text-indigo-600 font-bold font-mono">
+                      <strong className="text-slate-800 font-bold text-base block leading-tight dark:text-slate-200">{p.name}</strong>
+                      <div className="text-xs text-indigo-600 font-bold font-mono dark:text-indigo-400">
                         Precio Base: ${parseFloat(p.base_price as any).toFixed(2)}
                       </div>
                     </div>
@@ -812,21 +827,21 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                 <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => handleOpenEditProduct(p)}
-                    className="inline-flex items-center gap-1 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-xl text-xs font-bold text-indigo-700 transition"
+                    className="inline-flex items-center gap-1 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-xl text-xs font-bold text-indigo-700 transition dark:text-indigo-300 dark:bg-indigo-900/20 dark:border-indigo-800"
                   >
-                    <SlidersHorizontal className="h-4 w-4 text-indigo-600" />
+                    <SlidersHorizontal className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                     Editar Tallas y Atributos
                   </button>
                   <button
                     onClick={() => setShowAttributeModal(p.id)}
-                    className="inline-flex items-center gap-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50"
+                    className="inline-flex items-center gap-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:border-slate-700"
                   >
                     <Sliders className="h-4 w-4 text-slate-400" />
                     + Atributo
                   </button>
                   <button
                     onClick={() => setShowSizeModal(p.id)}
-                    className="inline-flex items-center gap-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50"
+                    className="inline-flex items-center gap-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:border-slate-700"
                   >
                     <Layers className="h-4 w-4 text-slate-400" />
                     + Vincular Talla
@@ -842,18 +857,18 @@ export default function AdminPanel({ token }: AdminPanelProps) {
       {/* SUB-TAB 3: CONTROL DE ACCESO (ACCESS CONTROL) */}
       {subTab === 'access' && (
         <div className="space-y-6">
-          <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl flex gap-3 items-start">
-            <Lock className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
-            <div className="text-xs text-slate-600 leading-normal font-medium">
-              <strong className="text-slate-800 font-bold">Matriz de Control de Acceso:</strong> Como administrador de seguridad, puede ajustar dinámicamente los privilegios de cada rol en tiempo real. Los cambios afectarán la visibilidad del menú de navegación del sistema. También puede dar de alta nuevos usuarios del sistema.
+          <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl flex gap-3 items-start dark:bg-slate-800/50 dark:border-slate-700">
+            <Lock className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5 dark:text-indigo-400" />
+            <div className="text-xs text-slate-600 leading-normal font-medium dark:text-slate-400">
+              <strong className="text-slate-800 font-bold dark:text-slate-200">Matriz de Control de Acceso:</strong> Como administrador de seguridad, puede ajustar dinámicamente los privilegios de cada rol en tiempo real. Los cambios afectarán la visibilidad del menú de navegación del sistema. También puede dar de alta nuevos usuarios del sistema.
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Roles and Permissions Matrix */}
             <div className="lg:col-span-2 space-y-4">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck className="h-4.5 w-4.5 text-indigo-600" />
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 dark:text-slate-200">
+                <ShieldCheck className="h-4.5 w-4.5 text-indigo-600 dark:text-indigo-400" />
                 Matriz de Permisos por Rol
               </h3>
 
@@ -874,11 +889,11 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     ];
 
                     return (
-                      <div key={role.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs hover:border-slate-300 transition flex flex-col justify-between">
+                      <div key={role.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs hover:border-slate-300 transition flex flex-col justify-between dark:bg-slate-800 dark:border-slate-700">
                         <div>
                           <div className="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
                             <div>
-                              <h4 className="text-sm font-bold text-slate-900 capitalize">{role.name === 'admin' ? 'Administrador' : role.name === 'tienda' ? 'Tienda / Ventas' : role.name === 'taller' ? 'Taller / Producción' : 'Cliente'}</h4>
+                              <h4 className="text-sm font-bold text-slate-900 capitalize dark:text-slate-100">{role.name === 'admin' ? 'Administrador' : role.name === 'tienda' ? 'Tienda / Ventas' : role.name === 'taller' ? 'Taller / Producción' : 'Cliente'}</h4>
                               <p className="text-[10px] text-slate-400 font-medium">{role.description}</p>
                             </div>
                             <span className="text-[10px] font-mono font-bold text-slate-300">ID #{role.id}</span>
@@ -893,7 +908,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
 
                               return (
                                 <div key={perm.key} className="flex justify-between items-center gap-4">
-                                  <span className="text-xs font-semibold text-slate-600 leading-tight">
+                                  <span className="text-xs font-semibold text-slate-600 leading-tight dark:text-slate-400">
                                     {perm.label}
                                   </span>
                                   <button
@@ -924,8 +939,8 @@ export default function AdminPanel({ token }: AdminPanelProps) {
             {/* Users Directory */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <Users className="h-4.5 w-4.5 text-indigo-600" />
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 dark:text-slate-200">
+                  <Users className="h-4.5 w-4.5 text-indigo-600 dark:text-indigo-400" />
                   Directorio de Usuarios
                 </h3>
                 <button
@@ -948,11 +963,11 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                   placeholder="Buscar usuario..."
                   value={accessSearch}
                   onChange={(e) => setAccessSearch(e.target.value)}
-                  className="block w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-900 text-xs font-semibold placeholder-slate-400 shadow-xs"
+                  className="block w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-900 text-xs font-semibold placeholder-slate-400 shadow-xs dark:text-slate-100 dark:bg-slate-800 dark:border-slate-700"
                 />
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs divide-y divide-slate-100 max-h-[460px] overflow-y-auto">
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs divide-y divide-slate-100 max-h-[460px] overflow-y-auto dark:bg-slate-800 dark:border-slate-700 dark:divide-slate-700">
                 {loadingAccess ? (
                   <div className="text-center py-12 text-slate-400 font-medium text-xs">
                     Cargando usuarios...
@@ -993,7 +1008,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                         <div key={u.id} className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-slate-50/50 transition">
                           <div className="space-y-0.5 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-800">{u.full_name}</span>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{u.full_name}</span>
                               <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-semibold ${u.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                                 {u.is_active ? 'Activo' : 'Inactivo'}
                               </span>
@@ -1037,26 +1052,26 @@ export default function AdminPanel({ token }: AdminPanelProps) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 border border-slate-100 space-y-4"
+              className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 border border-slate-100 space-y-4 dark:bg-slate-800"
             >
-              <h3 className="text-base font-bold text-slate-900">Crear Nuevo Producto en Catálogo</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Crear Nuevo Producto en Catálogo</h3>
               
               <form onSubmit={handleCreateProduct} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Nombre del Producto</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 dark:text-slate-300">Nombre del Producto</label>
                   <input
                     type="text"
                     required
                     value={newProdName}
                     onChange={(e) => setNewProdName(e.target.value)}
                     placeholder="Ej: Playera Polo DryFit"
-                    className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50"
+                    className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 dark:border-slate-700 dark:bg-slate-800/50"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Precio Base ($)</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 dark:text-slate-300">Precio Base ($)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -1064,15 +1079,15 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                       value={newProdPrice}
                       onChange={(e) => setNewProdPrice(e.target.value)}
                       placeholder="12.50"
-                      className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 font-mono"
+                      className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 font-mono dark:border-slate-700 dark:bg-slate-800/50"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Tipo de Maquila</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 dark:text-slate-300">Tipo de Maquila</label>
                     <select
                       value={newProdType}
                       onChange={(e) => setNewProdType(e.target.value)}
-                      className="block w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs bg-slate-50/50 font-semibold"
+                      className="block w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs bg-slate-50/50 font-semibold dark:border-slate-700 dark:bg-slate-800/50"
                     >
                       <option value="1">Camisa / Prenda Superior</option>
                       <option value="2">Chumpa / Exterior</option>
@@ -1085,7 +1100,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                   <button
                     type="button"
                     onClick={() => setShowProductModal(false)}
-                    className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50"
+                    className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 dark:text-slate-400 dark:border-slate-700"
                   >
                     Cancelar
                   </button>
@@ -1110,30 +1125,30 @@ export default function AdminPanel({ token }: AdminPanelProps) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 border border-slate-100 space-y-4"
+              className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 border border-slate-100 space-y-4 dark:bg-slate-800"
             >
-              <h3 className="text-base font-bold text-slate-900">Agregar Atributo de Personalización</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Agregar Atributo de Personalización</h3>
               
               <form onSubmit={handleAddAttribute} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Nombre del Atributo</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 dark:text-slate-300">Nombre del Atributo</label>
                   <input
                     type="text"
                     required
                     value={newAttrName}
                     onChange={(e) => setNewAttrName(e.target.value)}
                     placeholder="Ej: Tipo de Cuello, Tipo de Botón"
-                    className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50"
+                    className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 dark:border-slate-700 dark:bg-slate-800/50"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Tipo de Componente</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 dark:text-slate-300">Tipo de Componente</label>
                     <select
                       value={newAttrType}
                       onChange={(e) => setNewAttrType(e.target.value)}
-                      className="block w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs bg-slate-50/50 font-semibold"
+                      className="block w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs bg-slate-50/50 font-semibold dark:border-slate-700 dark:bg-slate-800/50"
                     >
                       <option value="1">Menú Desplegable (Catálogo)</option>
                       <option value="2">Paleta de Colores (Catálogo)</option>
@@ -1141,12 +1156,12 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     </select>
                   </div>
                   <div className="flex items-center pt-5">
-                    <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                    <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer dark:text-slate-300">
                       <input
                         type="checkbox"
                         checked={newAttrRequired}
                         onChange={(e) => setNewAttrRequired(e.target.checked)}
-                        className="rounded border-slate-200 text-indigo-600 focus:ring-indigo-500"
+                        className="rounded border-slate-200 text-indigo-600 focus:ring-indigo-500 dark:text-indigo-400 dark:border-slate-700"
                       />
                       ¿Es obligatorio?
                     </label>
@@ -1155,14 +1170,14 @@ export default function AdminPanel({ token }: AdminPanelProps) {
 
                 {['1', '2'].includes(newAttrType) && (
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Valores de Selección (Separados por coma)</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 dark:text-slate-300">Valores de Selección (Separados por coma)</label>
                     <input
                       type="text"
                       required
                       value={newAttrValues}
                       onChange={(e) => setNewAttrValues(e.target.value)}
                       placeholder="Ej: Italiano, Mao, Inglés, Polo"
-                      className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50"
+                      className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 dark:border-slate-700 dark:bg-slate-800/50"
                     />
                   </div>
                 )}
@@ -1171,7 +1186,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                   <button
                     type="button"
                     onClick={() => setShowAttributeModal(null)}
-                    className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50"
+                    className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 dark:text-slate-400 dark:border-slate-700"
                   >
                     Cancelar
                   </button>
@@ -1196,18 +1211,18 @@ export default function AdminPanel({ token }: AdminPanelProps) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 border border-slate-100 space-y-4"
+              className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 border border-slate-100 space-y-4 dark:bg-slate-800"
             >
-              <h3 className="text-base font-bold text-slate-900">Vincular Talla a Producto</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Vincular Talla a Producto</h3>
               
               <form onSubmit={handleAddSize} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Talla a Habilitar</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 dark:text-slate-300">Talla a Habilitar</label>
                   <select
                     required
                     value={newSizeId}
                     onChange={(e) => setNewSizeId(e.target.value)}
-                    className="block w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs bg-slate-50/50 font-semibold"
+                    className="block w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs bg-slate-50/50 font-semibold dark:border-slate-700 dark:bg-slate-800/50"
                   >
                     <option value="">Seleccione una talla de catálogo...</option>
                     {sizes.map(s => (
@@ -1217,7 +1232,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Modificador de Precio Base ($)</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 dark:text-slate-300">Modificador de Precio Base ($)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1225,7 +1240,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     value={newSizePrice}
                     onChange={(e) => setNewSizePrice(e.target.value)}
                     placeholder="0.00"
-                    className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 font-mono"
+                    className="block w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50/50 font-mono dark:border-slate-700 dark:bg-slate-800/50"
                   />
                   <span className="text-[10px] text-slate-400 block mt-1">Costo adicional agregado al precio base por escoger esta talla.</span>
                 </div>
@@ -1234,7 +1249,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                   <button
                     type="button"
                     onClick={() => setShowSizeModal(null)}
-                    className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50"
+                    className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 dark:text-slate-400 dark:border-slate-700"
                   >
                     Cancelar
                   </button>
@@ -1259,13 +1274,13 @@ export default function AdminPanel({ token }: AdminPanelProps) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl p-6 border border-slate-100 flex flex-col max-h-[90vh] overflow-hidden space-y-4"
+              className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl p-6 border border-slate-100 flex flex-col max-h-[90vh] overflow-hidden space-y-4 dark:bg-slate-800"
             >
               <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 font-mono">EDITAR PARÁMETROS RELACIONALES</span>
-                  <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-1.5">
-                    <Database className="h-5 w-5 text-indigo-500" />
+                  <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-1.5 dark:text-slate-100">
+                    <Database className="h-5 w-5 text-indigo-500 dark:text-indigo-300" />
                     {editingProduct.name}
                   </h3>
                 </div>
@@ -1280,7 +1295,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
               {loadingProductDetails ? (
                 <div className="flex flex-col items-center justify-center py-12 space-y-2">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                  <span className="text-xs text-slate-500 font-medium">Cargando catálogo, tallas y atributos...</span>
+                  <span className="text-xs text-slate-500 font-medium dark:text-slate-400">Cargando catálogo, tallas y atributos...</span>
                 </div>
               ) : (
                 <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-1 lg:grid-cols-12 gap-6 pb-4">
@@ -1288,24 +1303,24 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                   {/* Left Column: Manage Sizes */}
                   <div className="lg:col-span-5 space-y-4 border-r border-slate-100 pr-0 lg:pr-6">
                     <div>
-                      <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1">
+                      <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1 dark:text-slate-200">
                         <Layers className="h-4 w-4 text-slate-400" />
                         Tallas de Producto
                       </h4>
-                      <p className="text-[11px] text-slate-500">Habilita tallas de catálogo y define sus modificadores de precio.</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">Habilita tallas de catálogo y define sus modificadores de precio.</p>
                     </div>
 
                     <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
                       {editingProductSizes.map((ps, idx) => (
-                        <div key={ps.size_id} className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition">
-                          <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                        <div key={ps.size_id} className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition dark:bg-slate-800/50">
+                          <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer dark:text-slate-300">
                             <input
                               type="checkbox"
                               checked={ps.active}
                               onChange={(e) => handleUpdateProductSizeLocal(idx, 'active', e.target.checked)}
-                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:text-indigo-400 dark:border-slate-600"
                             />
-                            <span className="font-mono text-slate-900 font-bold">{ps.size_code}</span> - {ps.size_name}
+                            <span className="font-mono text-slate-900 font-bold dark:text-slate-100">{ps.size_code}</span> - {ps.size_name}
                           </label>
 
                           <div className="flex items-center gap-1.5">
@@ -1339,27 +1354,27 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                   {/* Right Column: Manage Attributes */}
                   <div className="lg:col-span-7 space-y-4">
                     <div>
-                      <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1">
+                      <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1 dark:text-slate-200">
                         <Sliders className="h-4 w-4 text-slate-400" />
                         Atributos de Personalización
                       </h4>
-                      <p className="text-[11px] text-slate-500">Gestiona los atributos existentes, sus componentes y valores permitidos.</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">Gestiona los atributos existentes, sus componentes y valores permitidos.</p>
                     </div>
 
                     {editingAttrId === null ? (
                       <div className="space-y-3">
                         {editingProductAttrs.length === 0 ? (
-                          <div className="p-6 border border-dashed border-slate-200 rounded-2xl text-center space-y-1">
+                          <div className="p-6 border border-dashed border-slate-200 rounded-2xl text-center space-y-1 dark:border-slate-700">
                             <Info className="h-5 w-5 text-slate-300 mx-auto" />
                             <p className="text-xs text-slate-400 font-medium">Este producto no cuenta con atributos aún.</p>
                           </div>
                         ) : (
                           editingProductAttrs.map((attr) => (
-                            <div key={attr.id} className="p-3.5 border border-slate-150 rounded-2xl space-y-2 hover:border-slate-300 transition bg-white">
+                            <div key={attr.id} className="p-3.5 border border-slate-200 rounded-2xl space-y-2 hover:border-slate-300 transition bg-white dark:bg-slate-800 dark:border-slate-700">
                               <div className="flex justify-between items-start">
                                 <div>
                                   <div className="flex items-center gap-1.5">
-                                    <h5 className="text-xs font-bold text-slate-800">{attr.attribute_name}</h5>
+                                    <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200">{attr.attribute_name}</h5>
                                     <span className={`inline-flex px-1.5 py-0.2 rounded-full text-[8px] font-bold ${
                                       attr.is_required ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'
                                     }`}>
@@ -1372,7 +1387,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                                 </div>
                                 <button
                                   onClick={() => handleStartEditAttribute(attr)}
-                                  className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline px-2.5 py-1 bg-indigo-50 rounded-lg cursor-pointer"
+                                  className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline px-2.5 py-1 bg-indigo-50 rounded-lg cursor-pointer dark:text-indigo-400 dark:bg-indigo-900/20"
                                 >
                                   Editar Atributo
                                 </button>
@@ -1381,7 +1396,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                               {attr.values && attr.values.length > 0 && (
                                 <div className="flex flex-wrap gap-1 pt-1 border-t border-slate-50">
                                   {attr.values.map((v: any) => (
-                                    <span key={v.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-50 border border-slate-100 text-[10px] font-medium text-slate-600 font-mono">
+                                    <span key={v.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-50 border border-slate-100 text-[10px] font-medium text-slate-600 font-mono dark:text-slate-400 dark:bg-slate-800/50">
                                       {v.value} {parseFloat(v.price_modifier) > 0 && `(+$${parseFloat(v.price_modifier).toFixed(2)})`}
                                     </span>
                                   ))}
@@ -1392,13 +1407,13 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                         )}
                       </div>
                     ) : (
-                      <form onSubmit={handleSaveAttributeEdit} className="p-4 border border-indigo-100 bg-indigo-50/20 rounded-2xl space-y-4">
+                      <form onSubmit={handleSaveAttributeEdit} className="p-4 border border-indigo-100 bg-indigo-50/20 rounded-2xl space-y-4 dark:border-indigo-800">
                         <div className="flex justify-between items-center border-b border-indigo-50 pb-2">
-                          <span className="text-xs font-bold text-indigo-900">Editando Atributo</span>
+                          <span className="text-xs font-bold text-indigo-900 dark:text-indigo-100">Editando Atributo</span>
                           <button
                             type="button"
                             onClick={() => setEditingAttrId(null)}
-                            className="text-[10px] font-bold text-slate-500 hover:text-slate-800 cursor-pointer"
+                            className="text-[10px] font-bold text-slate-500 hover:text-slate-800 cursor-pointer dark:text-slate-400"
                           >
                             Volver a la lista
                           </button>
@@ -1406,22 +1421,22 @@ export default function AdminPanel({ token }: AdminPanelProps) {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-[11px] font-bold text-slate-600 mb-1">Nombre del Atributo</label>
+                            <label className="block text-[11px] font-bold text-slate-600 mb-1 dark:text-slate-400">Nombre del Atributo</label>
                             <input
                               type="text"
                               required
                               value={editingAttrName}
                               onChange={(e) => setEditingAttrName(e.target.value)}
-                              className="block w-full p-2 border border-slate-200 bg-white rounded-lg text-xs"
+                              className="block w-full p-2 border border-slate-200 bg-white rounded-lg text-xs dark:bg-slate-800 dark:border-slate-700"
                             />
                           </div>
                           <div className="flex items-center pt-5">
-                            <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                            <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer dark:text-slate-300">
                               <input
                                 type="checkbox"
                                 checked={editingAttrRequired}
                                 onChange={(e) => setEditingAttrRequired(e.target.checked)}
-                                className="rounded border-slate-200 text-indigo-600 focus:ring-indigo-500"
+                                className="rounded border-slate-200 text-indigo-600 focus:ring-indigo-500 dark:text-indigo-400 dark:border-slate-700"
                               />
                               ¿Es de selección obligatoria?
                             </label>
@@ -1431,11 +1446,11 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                         {/* List / Edit values */}
                         <div className="space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-[11px] font-bold text-slate-600">Catálogo de Valores Permitidos</span>
+                            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Catálogo de Valores Permitidos</span>
                             <button
                               type="button"
                               onClick={handleAddEditAttrValue}
-                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 cursor-pointer"
+                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 cursor-pointer dark:text-indigo-400"
                             >
                               <Plus className="h-3 w-3" /> Agregar Valor
                             </button>
@@ -1450,7 +1465,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                                   value={val.value}
                                   onChange={(e) => handleUpdateEditAttrValue(idx, 'value', e.target.value)}
                                   placeholder="Valor (ej: Cuello Inglés)"
-                                  className="flex-1 p-1.5 border border-slate-200 bg-white rounded-lg text-xs"
+                                  className="flex-1 p-1.5 border border-slate-200 bg-white rounded-lg text-xs dark:bg-slate-800 dark:border-slate-700"
                                 />
                                 <div className="flex items-center gap-1">
                                   <span className="text-[10px] text-slate-400 font-bold">$</span>
@@ -1460,7 +1475,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                                     value={val.price_modifier}
                                     onChange={(e) => handleUpdateEditAttrValue(idx, 'price_modifier', e.target.value)}
                                     placeholder="Modificador"
-                                    className="w-16 p-1.5 border border-slate-200 bg-white rounded-lg text-xs text-right font-mono"
+                                    className="w-16 p-1.5 border border-slate-200 bg-white rounded-lg text-xs text-right font-mono dark:bg-slate-800 dark:border-slate-700"
                                   />
                                 </div>
                                 <button
@@ -1483,7 +1498,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                           <button
                             type="button"
                             onClick={() => setEditingAttrId(null)}
-                            className="px-3 py-1.5 border border-slate-200 text-slate-600 text-xs font-semibold rounded-lg bg-white cursor-pointer"
+                            className="px-3 py-1.5 border border-slate-200 text-slate-600 text-xs font-semibold rounded-lg bg-white cursor-pointer dark:text-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           >
                             Cancelar
                           </button>
@@ -1505,7 +1520,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                 <button
                   type="button"
                   onClick={() => setEditingProduct(null)}
-                  className="px-5 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 cursor-pointer"
+                  className="px-5 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 cursor-pointer dark:text-slate-400 dark:border-slate-700"
                 >
                   Cerrar Ventana
                 </button>
@@ -1523,12 +1538,12 @@ export default function AdminPanel({ token }: AdminPanelProps) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-slate-200 rounded-3xl shadow-xl w-full max-w-md overflow-hidden flex flex-col"
+              className="bg-white border border-slate-200 rounded-3xl shadow-xl w-full max-w-md overflow-hidden flex flex-col dark:bg-slate-800 dark:border-slate-700"
             >
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
                 <div className="flex items-center gap-2">
-                  <UserPlus className="h-5 w-5 text-indigo-600" />
-                  <strong className="text-slate-900 font-bold text-lg">Dar de Alta Nuevo Usuario</strong>
+                  <UserPlus className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                  <strong className="text-slate-900 font-bold text-lg dark:text-slate-100">Dar de Alta Nuevo Usuario</strong>
                 </div>
                 <button
                   onClick={() => setShowUserModal(false)}
@@ -1554,7 +1569,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     value={newFullName}
                     onChange={(e) => setNewFullName(e.target.value)}
                     placeholder="Ej: Mario Marroquín"
-                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs"
+                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700"
                   />
                 </div>
 
@@ -1566,7 +1581,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
                     placeholder="Ej: mario@example.com"
-                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs"
+                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700"
                   />
                 </div>
 
@@ -1578,7 +1593,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Contraseña del usuario"
-                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs"
+                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700"
                   />
                 </div>
 
@@ -1587,7 +1602,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                   <select
                     value={newRoleId}
                     onChange={(e) => setNewRoleId(e.target.value)}
-                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs"
+                    className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700"
                   >
                     <option value="1">Administrador (Admin)</option>
                     <option value="2">Tienda / Ventas (Tienda)</option>
@@ -1598,40 +1613,40 @@ export default function AdminPanel({ token }: AdminPanelProps) {
 
                 {newRoleId === '4' && (
                   <div className="pt-2 pb-1 border-t border-slate-100 mt-2">
-                    <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3">Datos Fiscales (Para Facturación DTE)</h4>
+                    <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3 dark:text-indigo-300">Datos Fiscales (Para Facturación DTE)</h4>
                     <div className="grid grid-cols-2 gap-3 mb-3">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">NIT</label>
-                        <input type="text" required inputMode="numeric" autoComplete="off" maxLength={17} value={newNit} onChange={(e) => setNewNit(formatNumericIdentifier(e.target.value, [4, 6, 3, 1]))} placeholder="0000-000000-000-0" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                        <input type="text" required inputMode="numeric" autoComplete="off" maxLength={17} value={newNit} onChange={(e) => setNewNit(formatNumericIdentifier(e.target.value, [4, 6, 3, 1]))} placeholder="0000-000000-000-0" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700" />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">NRC</label>
-                        <input type="text" required inputMode="numeric" autoComplete="off" maxLength={9} value={newNrc} onChange={(e) => setNewNrc(formatNumericIdentifier(e.target.value, [7, 1]))} placeholder="0000000-0" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                        <input type="text" required inputMode="numeric" autoComplete="off" maxLength={9} value={newNrc} onChange={(e) => setNewNrc(formatNumericIdentifier(e.target.value, [7, 1]))} placeholder="0000000-0" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700" />
                       </div>
                     </div>
                     <div className="space-y-1 mb-3">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Actividad Económica</label>
-                      <input type="text" value={newActividadEconomica} onChange={(e) => setNewActividadEconomica(e.target.value)} placeholder="Ej: Venta al por menor" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                      <input type="text" value={newActividadEconomica} onChange={(e) => setNewActividadEconomica(e.target.value)} placeholder="Ej: Venta al por menor" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700" />
                     </div>
                     <div className="space-y-1 mb-3">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Nombre Comercial</label>
-                      <input type="text" value={newNombreComercial} onChange={(e) => setNewNombreComercial(e.target.value)} placeholder="Nombre del negocio (opcional)" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                      <input type="text" value={newNombreComercial} onChange={(e) => setNewNombreComercial(e.target.value)} placeholder="Nombre del negocio (opcional)" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Teléfono</label>
-                        <input type="text" required inputMode="numeric" autoComplete="tel" maxLength={9} value={newTelefono} onChange={(e) => setNewTelefono(formatNumericIdentifier(e.target.value, [4, 4]))} placeholder="0000-0000" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                        <input type="text" required inputMode="numeric" autoComplete="tel" maxLength={9} value={newTelefono} onChange={(e) => setNewTelefono(formatNumericIdentifier(e.target.value, [4, 4]))} placeholder="0000-0000" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700" />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Dirección</label>
-                        <input type="text" value={newDireccion} onChange={(e) => setNewDireccion(e.target.value)} placeholder="San Salvador" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs" />
+                        <input type="text" value={newDireccion} onChange={(e) => setNewDireccion(e.target.value)} placeholder="San Salvador" className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700" />
                       </div>
                     </div>
                   </div>
                 )}
 
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-xs font-semibold text-slate-600">¿Usuario Activo?</span>
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">¿Usuario Activo?</span>
                   <button
                     type="button"
                     onClick={() => setNewUserIsActive(!newUserIsActive)}
@@ -1651,7 +1666,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                   <button
                     type="button"
                     onClick={() => setShowUserModal(false)}
-                    className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 cursor-pointer"
+                    className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 cursor-pointer dark:text-slate-400 dark:border-slate-700"
                   >
                     Cancelar
                   </button>

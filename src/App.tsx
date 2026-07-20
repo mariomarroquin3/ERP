@@ -83,10 +83,10 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center space-y-3">
           <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-slate-500 text-sm font-semibold">Sincronizando con Maquila ERP...</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm font-semibold">Sincronizando con Maquila ERP...</p>
         </div>
       </div>
     );
@@ -130,7 +130,7 @@ export default function App() {
         return <MyOrders token={token} />;
       default:
         return (
-          <div className="py-12 text-center text-slate-400">
+          <div className="py-12 text-center text-slate-400 dark:text-slate-500">
             <p className="font-semibold text-sm">Sección no encontrada o sin permisos de acceso</p>
           </div>
         );
@@ -138,14 +138,14 @@ export default function App() {
   };
 
   return (
-    <div className="flex bg-slate-50 h-screen overflow-hidden">
+    <div className="flex bg-slate-50 dark:bg-slate-950 h-screen overflow-hidden">
 
-      {/* Sonner - estilo elegante blanco/negro */}
+      {/* Sonner - estilo elegante */}
       <Toaster
         position="top-right"
         toastOptions={{
-          className: 'bg-white text-zinc-900 border border-zinc-200 shadow-md rounded-xl',
-          descriptionClassName: 'text-zinc-500',
+          className: 'bg-white dark:bg-slate-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-slate-700 shadow-md rounded-xl',
+          descriptionClassName: 'text-zinc-500 dark:text-zinc-400',
         }}
       />
 
