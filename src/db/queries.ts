@@ -69,6 +69,69 @@ export async function getClients(): Promise<{ id: number; full_name: string; ema
   }
 }
 
+export async function getPasswordResetRequest(email: string): Promise<any | null> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [rows]: any = await pool.query('SELECT * FROM password_reset_requests WHERE email = ? ORDER BY id DESC LIMIT 1', [email]);
+    return rows.length > 0 ? rows[0] : null;
+  } else {
+    // Sort by id descending
+    const reqs = mockDb.passwordResetRequests.filter(r => r.email === email).sort((a, b) => b.id - a.id);
+    return reqs.length > 0 ? reqs[0] : null;
+  }
+}
+
+export async function createPasswordResetRequest(email: string): Promise<void> {
+  const pool = await getDbPool();
+  if (pool) {
+    await pool.query('INSERT INTO password_reset_requests (email, status, created_at) VALUES (?, ?, NOW())', [email, 'pending']);
+  } else {
+    mockDb.passwordResetRequests.push({
+      id: mockDb.passwordResetRequests.length + 1,
+      email,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    });
+  }
+}
+
+export async function getAllPasswordResetRequests(): Promise<any[]> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [rows]: any = await pool.query('SELECT * FROM password_reset_requests ORDER BY created_at DESC');
+    return rows;
+  } else {
+    return [...mockDb.passwordResetRequests].sort((a, b) => b.id - a.id);
+  }
+}
+
+export async function updatePasswordResetRequestStatus(id: number, status: 'pending' | 'approved' | 'rejected'): Promise<void> {
+  const pool = await getDbPool();
+  if (pool) {
+    await pool.query('UPDATE password_reset_requests SET status = ? WHERE id = ?', [status, id]);
+  } else {
+    const req = mockDb.passwordResetRequests.find(r => r.id === id);
+    if (req) {
+      req.status = status;
+    }
+  }
+}
+
+export async function resetPassword(email: string, newPasswordHash: string): Promise<void> {
+  const pool = await getDbPool();
+  if (pool) {
+    await pool.query('UPDATE users SET password_hash = ? WHERE email = ?', [newPasswordHash, email]);
+    await pool.query('DELETE FROM password_reset_requests WHERE email = ?', [email]);
+  } else {
+    const user = mockDb.users.find(u => u.email === email);
+    if (user) {
+      user.password_hash = newPasswordHash;
+    }
+    mockDb.passwordResetRequests = mockDb.passwordResetRequests.filter(r => r.email !== email);
+  }
+}
+
+
 // 2. Catalog Queries
 export async function getProducts(): Promise<Product[]> {
   const pool = await getDbPool();

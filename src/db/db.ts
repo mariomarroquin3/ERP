@@ -253,6 +253,14 @@ export interface ReworkEvent {
   stage_name?: string;
 }
 
+export interface PasswordResetRequest {
+  id: number;
+  email: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+}
+
+
 
 
 // Custom DB Error mimicking MySQL custom trigger errors
@@ -336,6 +344,7 @@ class MockDatabase {
   auditLogs: AuditLog[] = [];
   reworkEvents: ReworkEvent[] = [];
   invoiceSequences: { year: number; next_number: number }[] = [];
+  passwordResetRequests: PasswordResetRequest[] = [];
 
   private nextIds: Record<string, number> = {};
 

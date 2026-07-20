@@ -55,7 +55,12 @@ import {
   createUser,
   updateUserStatus,
   extendWorkCalendar,
-  repairWorkCalendarDefaultDays
+  repairWorkCalendarDefaultDays,
+  getPasswordResetRequest,
+  createPasswordResetRequest,
+  getAllPasswordResetRequests,
+  updatePasswordResetRequestStatus,
+  resetPassword
 } from './src/db/queries';
 import { MySqlCustomError } from './src/db/db';
 
@@ -94,7 +99,8 @@ const authLimiter = rateLimit({
 // Apply API rate limiting on API paths
 app.use('/api/', apiLimiter);
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // JWT Authentication Middleware
 function authenticateToken(req: any, res: any, next: any) {
@@ -197,6 +203,65 @@ app.post('/api/auth/login', authLimiter, async (req: any, res: any, next: any) =
         permissions,
       }
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/auth/recover', authLimiter, async (req: any, res: any, next: any) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'El correo electrónico es obligatorio' });
+    }
+    
+    const user = await getUserByEmail(email);
+    if (!user) {
+      // Simulate success if user doesn't exist for security
+      return res.json({ 
+        success: true, 
+        message: 'Si el correo está registrado en nuestro sistema, recibirá un enlace para recuperar su contraseña.',
+        status: 'none'
+      });
+    }
+
+    const request = await getPasswordResetRequest(email);
+    if (request) {
+      return res.json({
+        success: true,
+        message: 'Su solicitud ya fue enviada y está en estado: ' + (request.status === 'pending' ? 'Pendiente' : (request.status === 'approved' ? 'Aprobada' : 'Rechazada')),
+        status: request.status
+      });
+    }
+
+    await createPasswordResetRequest(email);
+
+    res.json({ 
+      success: true, 
+      message: 'Su solicitud de cambio de contraseña ha sido enviada al administrador y está a la espera de aprobación.',
+      status: 'pending'
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/auth/reset-password', authLimiter, async (req: any, res: any, next: any) => {
+  try {
+    const { email, newPassword } = req.body;
+    if (!email || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email y nueva contraseña son obligatorios' });
+    }
+
+    const request = await getPasswordResetRequest(email);
+    if (!request || request.status !== 'approved') {
+      return res.status(403).json({ success: false, message: 'No tiene una solicitud aprobada para cambiar la contraseña.' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await resetPassword(email, passwordHash);
+
+    res.json({ success: true, message: 'Contraseña actualizada exitosamente. Ya puede iniciar sesión.' });
   } catch (err) {
     next(err);
   }
@@ -661,6 +726,30 @@ app.get('/api/admin/users', authenticateToken, requireRole(['admin']), async (re
   try {
     const users = await getAllUsers();
     res.json({ success: true, users });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Password reset requests
+app.get('/api/admin/password-requests', authenticateToken, requireRole(['admin']), async (req: any, res: any, next: any) => {
+  try {
+    const requests = await getAllPasswordResetRequests();
+    res.json({ success: true, requests });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.put('/api/admin/password-requests/:id/status', authenticateToken, requireRole(['admin']), async (req: any, res: any, next: any) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { status } = req.body;
+    if (!status || !['pending', 'approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Estado inválido' });
+    }
+    await updatePasswordResetRequestStatus(id, status as 'pending' | 'approved' | 'rejected');
+    res.json({ success: true, message: 'Estado de la solicitud actualizado' });
   } catch (err) {
     next(err);
   }
