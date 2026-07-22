@@ -92,7 +92,7 @@ export default function Sidebar({ user, activeTab, setActiveTab, onLogout }: Sid
   ];
 
   const visibleItems = menuItems.filter((item) => {
-    if (user.permissions) {
+    if (user.permissions && user.permissions.length > 0) {
       return user.permissions.includes(item.permission);
     }
     return item.roles.includes(user.role);

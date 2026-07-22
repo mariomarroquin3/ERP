@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { getDbPool, mockDb, MySqlCustomError, User, Product, ProductAttribute, ProductSize, Order, OrderItem, ProductionTask, WorkCalendar, Size, ProductAttributeValue, getProductionSchedule, ReworkEvent } from './db';
+import { getDbPool, mockDb, MySqlCustomError, User, Product, ProductAttribute, ProductSize, Order, OrderItem, ProductionTask, WorkCalendar, Size, ProductAttributeValue, getProductionSchedule, ReworkEvent, ContractType, AttendanceStatus, Employee, Attendance } from './db';
 import {
   snapshotOrderItemSize,
   snapshotOrderItemAttribute,
@@ -2432,22 +2432,22 @@ export async function getRolePermissions(): Promise<any[]> {
   const pool = await getDbPool();
   if (pool) {
     try {
-      // Ensure seed permissions exist in MySQL as well
-      const [rows]: any = await pool.query('SELECT * FROM role_permissions');
-      if (rows.length === 0) {
-        // Seed default permissions
-        const defaultPerms = [
-          [1, 'dashboard', 1], [1, 'calendar', 1], [1, 'create_order', 1], [1, 'kanban', 1], [1, 'admin_panel', 1], [1, 'my_orders', 0],
-          [2, 'dashboard', 1], [2, 'calendar', 1], [2, 'create_order', 1], [2, 'kanban', 0], [2, 'admin_panel', 0], [2, 'my_orders', 0],
-          [3, 'dashboard', 0], [3, 'calendar', 0], [3, 'create_order', 0], [3, 'kanban', 1], [3, 'admin_panel', 0], [3, 'my_orders', 0],
-          [4, 'dashboard', 0], [4, 'calendar', 0], [4, 'create_order', 0], [4, 'kanban', 0], [4, 'admin_panel', 0], [4, 'my_orders', 1]
-        ];
-        for (const perm of defaultPerms) {
-          await pool.query('INSERT IGNORE INTO role_permissions (role_id, permission_key, is_enabled) VALUES (?, ?, ?)', perm);
-        }
-        const [seededRows]: any = await pool.query('SELECT * FROM role_permissions');
-        return seededRows;
+      const defaultPerms = [
+        [1, 'dashboard', 1], [1, 'calendar', 1], [1, 'create_order', 1], [1, 'kanban', 1], [1, 'admin_panel', 1], [1, 'my_orders', 0],
+        [1, 'employees.manage', 1], [1, 'attendance.view', 1], [1, 'attendance.register', 1],
+        [2, 'dashboard', 1], [2, 'calendar', 1], [2, 'create_order', 1], [2, 'kanban', 0], [2, 'admin_panel', 0], [2, 'my_orders', 0],
+        [2, 'employees.manage', 0], [2, 'attendance.view', 0], [2, 'attendance.register', 0],
+        [3, 'dashboard', 0], [3, 'calendar', 0], [3, 'create_order', 0], [3, 'kanban', 1], [3, 'admin_panel', 0], [3, 'my_orders', 0],
+        [3, 'employees.manage', 0], [3, 'attendance.view', 1], [3, 'attendance.register', 1],
+        [4, 'dashboard', 0], [4, 'calendar', 0], [4, 'create_order', 0], [4, 'kanban', 0], [4, 'admin_panel', 0], [4, 'my_orders', 1],
+        [4, 'employees.manage', 0], [4, 'attendance.view', 0], [4, 'attendance.register', 0],
+        [5, 'dashboard', 0], [5, 'calendar', 0], [5, 'create_order', 0], [5, 'kanban', 1], [5, 'admin_panel', 0], [5, 'my_orders', 0],
+        [5, 'employees.manage', 0], [5, 'attendance.view', 1], [5, 'attendance.register', 1]
+      ];
+      for (const perm of defaultPerms) {
+        await pool.query('INSERT IGNORE INTO role_permissions (role_id, permission_key, is_enabled) VALUES (?, ?, ?)', perm);
       }
+      const [rows]: any = await pool.query('SELECT * FROM role_permissions');
       return rows;
     } catch (err) {
       console.error('Failed to query role_permissions:', err);
@@ -2691,4 +2691,234 @@ export async function extendWorkCalendar(daysAhead: number): Promise<void> {
 }
 
 
+// ==========================================================
+// EMPLOYEES MODULE
+// ==========================================================
+
+export async function getEmployees(): Promise<(Employee & { contract_type_name: string; contract_type_code: string })[]> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [rows]: any = await pool.query(`
+      SELECT e.*, ct.name AS contract_type_name, ct.code AS contract_type_code
+      FROM employees e
+      JOIN contract_types ct ON e.contract_type_id = ct.id
+      ORDER BY e.full_name ASC
+    `);
+    return rows.map((r: any) => ({ ...r, is_active: !!r.is_active }));
+  } else {
+    return mockDb.employees.map((e) => {
+      const ct = mockDb.contractTypes.find((c) => c.id === e.contract_type_id);
+      return {
+        ...e,
+        contract_type_name: ct?.name ?? '',
+        contract_type_code: ct?.code ?? '',
+      };
+    });
+  }
+}
+
+export async function getEmployeeById(id: number): Promise<(Employee & { contract_type_name: string; contract_type_code: string }) | null> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [rows]: any = await pool.query(`
+      SELECT e.*, ct.name AS contract_type_name, ct.code AS contract_type_code
+      FROM employees e
+      JOIN contract_types ct ON e.contract_type_id = ct.id
+      WHERE e.id = ?
+    `, [id]);
+    if (rows.length === 0) return null;
+    return { ...rows[0], is_active: !!rows[0].is_active };
+  } else {
+    const e = mockDb.employees.find((emp) => emp.id === id);
+    if (!e) return null;
+    const ct = mockDb.contractTypes.find((c) => c.id === e.contract_type_id);
+    return {
+      ...e,
+      contract_type_name: ct?.name ?? '',
+      contract_type_code: ct?.code ?? '',
+    };
+  }
+}
+
+export async function createEmployee(employee: Omit<Employee, 'id' | 'created_at' | 'updated_at'>): Promise<number> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [result]: any = await pool.query(
+      `INSERT INTO employees (full_name, position, hire_date, contract_type_id, base_salary, is_active, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [employee.full_name, employee.position, employee.hire_date, employee.contract_type_id, employee.base_salary, employee.is_active ? 1 : 0, employee.user_id]
+    );
+    return result.insertId;
+  } else {
+    const newId = mockDb['nextId']('employees');
+    const now = new Date().toISOString();
+    mockDb.employees.push({
+      ...employee,
+      id: newId,
+      created_at: now,
+      updated_at: now,
+    });
+    return newId;
+  }
+}
+
+export async function updateEmployee(id: number, updates: Partial<Omit<Employee, 'id' | 'created_at' | 'updated_at'>>): Promise<boolean> {
+  const pool = await getDbPool();
+  if (pool) {
+    const fields = Object.keys(updates);
+    if (fields.length === 0) return false;
+    const setClauses = fields.map((f) => `${f} = ?`).join(', ');
+    const values = fields.map((f) => (updates as any)[f]);
+    await pool.query(`UPDATE employees SET ${setClauses}, updated_at = NOW() WHERE id = ?`, [...values, id]);
+    return true;
+  } else {
+    const emp = mockDb.employees.find((e) => e.id === id);
+    if (!emp) return false;
+    Object.assign(emp, updates, { updated_at: new Date().toISOString() });
+    return true;
+  }
+}
+
+export async function updateEmployeeStatus(id: number, isActive: boolean): Promise<boolean> {
+  return updateEmployee(id, { is_active: isActive });
+}
+
+// ==========================================================
+// ATTENDANCE MODULE
+// ==========================================================
+
+export async function getAttendance(
+  startDate: string,
+  endDate: string,
+  employeeId?: number
+): Promise<(Attendance & { employee_name: string; status_name: string; status_code: string; stage_name: string | null })[]> {
+  const pool = await getDbPool();
+  if (pool) {
+    let sql = `
+      SELECT a.*,
+             e.full_name AS employee_name,
+             ast.name AS status_name,
+             ast.code AS status_code,
+             ps.name AS stage_name
+      FROM attendance a
+      JOIN employees e ON a.employee_id = e.id
+      JOIN attendance_status ast ON a.attendance_status_id = ast.id
+      LEFT JOIN production_stages ps ON a.stage_id = ps.id
+      WHERE a.work_date BETWEEN ? AND ?
+    `;
+    const params: any[] = [startDate, endDate];
+    if (employeeId) {
+      sql += ' AND a.employee_id = ?';
+      params.push(employeeId);
+    }
+    sql += ' ORDER BY a.work_date DESC, e.full_name ASC';
+    const [rows]: any = await pool.query(sql, params);
+    return rows;
+  } else {
+    let records = mockDb.attendance.filter(
+      (a) => a.work_date >= startDate && a.work_date <= endDate
+    );
+    if (employeeId) {
+      records = records.filter((a) => a.employee_id === employeeId);
+    }
+    records = [...records].sort((a, b) => b.work_date.localeCompare(a.work_date));
+    return records.map((a) => {
+      const emp = mockDb.employees.find((e) => e.id === a.employee_id);
+      const status = mockDb.attendanceStatuses.find((s) => s.id === a.attendance_status_id);
+      const stage = mockDb.productionStages.find((ps) => ps.id === a.stage_id);
+      return {
+        ...a,
+        employee_name: emp?.full_name ?? '',
+        status_name: status?.name ?? '',
+        status_code: status?.code ?? '',
+        stage_name: stage?.name ?? null,
+      };
+    });
+  }
+}
+
+export async function registerAttendanceCheckIn(
+  employeeId: number,
+  workDate: string,
+  checkInTime: string,
+  statusId: number,
+  stageId?: number
+): Promise<number> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [result]: any = await pool.query(`
+      INSERT INTO attendance (employee_id, work_date, check_in, attendance_status_id, stage_id)
+      VALUES (?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE check_in = VALUES(check_in), attendance_status_id = VALUES(attendance_status_id), stage_id = VALUES(stage_id)
+    `, [employeeId, workDate, checkInTime, statusId, stageId ?? null]);
+    return result.insertId || result.affectedRows;
+  } else {
+    const existing = mockDb.attendance.find(
+      (a) => a.employee_id === employeeId && a.work_date === workDate
+    );
+    if (existing) {
+      existing.check_in = checkInTime;
+      existing.attendance_status_id = statusId;
+      existing.stage_id = stageId ?? null;
+      return existing.id;
+    } else {
+      const newId = mockDb['nextId']('attendance');
+      mockDb.attendance.push({
+        id: newId,
+        employee_id: employeeId,
+        work_date: workDate,
+        check_in: checkInTime,
+        check_out: null,
+        attendance_status_id: statusId,
+        stage_id: stageId ?? null,
+      });
+      return newId;
+    }
+  }
+}
+
+export async function registerAttendanceCheckOut(
+  employeeId: number,
+  workDate: string,
+  checkOutTime: string
+): Promise<boolean> {
+  const pool = await getDbPool();
+  if (pool) {
+    await pool.query(
+      `UPDATE attendance SET check_out = ? WHERE employee_id = ? AND work_date = ?`,
+      [checkOutTime, employeeId, workDate]
+    );
+    return true;
+  } else {
+    const existing = mockDb.attendance.find(
+      (a) => a.employee_id === employeeId && a.work_date === workDate
+    );
+    if (!existing) return false;
+    existing.check_out = checkOutTime;
+    return true;
+  }
+}
+
+// ==========================================================
+// CATALOG QUERIES
+// ==========================================================
+
+export async function getContractTypes(): Promise<ContractType[]> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [rows]: any = await pool.query('SELECT * FROM contract_types ORDER BY id ASC');
+    return rows;
+  } else {
+    return [...mockDb.contractTypes];
+  }
+}
+
+export async function getAttendanceStatuses(): Promise<AttendanceStatus[]> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [rows]: any = await pool.query('SELECT * FROM attendance_status ORDER BY id ASC');
+    return rows;
+  } else {
+    return [...mockDb.attendanceStatuses];
+  }
+}
 

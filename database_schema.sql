@@ -34,6 +34,13 @@ SET NAMES utf8mb4;
 --
 -- [work_calendar] (Capacidad de producción diaria por etapa de producción)
 -- [audit_logs] (Registro detallado para auditoría de acciones del sistema)
+--
+-- MÓDULO DE EMPLEADOS Y ASISTENCIA:
+-- [contract_types] 1 ------ N [employees] N ------ 1 [users] (opcional)
+--                                |
+--                                +-- 1 ------ N [attendance] N ------ 1 [attendance_status]
+--                                                                  |
+--                                                                  +-- N ------ 1 [production_stages] (opcional)
 -- =============================================================================
 
 
@@ -510,3 +517,114 @@ ON DUPLICATE KEY UPDATE full_name=VALUES(full_name), email=VALUES(email), role_i
 --    solicita el cambio y un administrador debe aprobarlo antes de que el usuario
 --    pueda definir su nueva contraseña desde la pantalla de login.
 -- =============================================================================
+
+
+-- =============================================================================
+-- MÓDULO DE EMPLEADOS Y ASISTENCIA
+-- =============================================================================
+
+-- Tabla de Tipos de Contrato
+CREATE TABLE IF NOT EXISTS contract_types (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tabla de Empleados
+CREATE TABLE IF NOT EXISTS employees (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(255) NOT NULL,
+    position VARCHAR(255) NOT NULL,
+    hire_date DATE NOT NULL,
+    contract_type_id INT NOT NULL,
+    base_salary DECIMAL(10,2) NOT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    user_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_employees_contract FOREIGN KEY (contract_type_id) REFERENCES contract_types (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_employees_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tabla de Estados de Asistencia
+CREATE TABLE IF NOT EXISTS attendance_status (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tabla de Registros de Asistencia
+CREATE TABLE IF NOT EXISTS attendance (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    employee_id INT NOT NULL,
+    work_date DATE NOT NULL,
+    check_in TIME NULL,
+    check_out TIME NULL,
+    attendance_status_id INT NOT NULL,
+    stage_id INT NULL,
+    UNIQUE KEY uq_employee_date (employee_id, work_date),
+    CONSTRAINT fk_attendance_employee FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE,
+    CONSTRAINT fk_attendance_status FOREIGN KEY (attendance_status_id) REFERENCES attendance_status (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_attendance_stage FOREIGN KEY (stage_id) REFERENCES production_stages (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- DATOS DE SEED: Módulo de Empleados y Asistencia
+-- =============================================================================
+
+-- Tipos de Contrato
+INSERT INTO contract_types (id, code, name) VALUES
+(1, 'tiempo_completo', 'Tiempo Completo'),
+(2, 'medio_tiempo', 'Medio Tiempo'),
+(3, 'destajo', 'Por producción/destajo')
+ON DUPLICATE KEY UPDATE code=VALUES(code), name=VALUES(name);
+
+-- Estados de Asistencia
+INSERT INTO attendance_status (id, code, name) VALUES
+(1, 'presente', 'Presente'),
+(2, 'tardanza', 'Tardanza'),
+(3, 'ausente', 'Ausente'),
+(4, 'permiso', 'Permiso'),
+(5, 'incapacidad', 'Incapacidad')
+ON DUPLICATE KEY UPDATE code=VALUES(code), name=VALUES(name);
+
+-- Permisos de roles para todos los módulos
+INSERT INTO role_permissions (role_id, permission_key, is_enabled) VALUES
+-- Admin (id: 1)
+(1, 'dashboard', 1), (1, 'calendar', 1), (1, 'create_order', 1), (1, 'kanban', 1), (1, 'admin_panel', 1), (1, 'my_orders', 0),
+(1, 'employees.manage', 1), (1, 'attendance.view', 1), (1, 'attendance.register', 1),
+-- Tienda (id: 2)
+(2, 'dashboard', 1), (2, 'calendar', 1), (2, 'create_order', 1), (2, 'kanban', 0), (2, 'admin_panel', 0), (2, 'my_orders', 0),
+(2, 'employees.manage', 0), (2, 'attendance.view', 0), (2, 'attendance.register', 0),
+-- Taller (id: 3)
+(3, 'dashboard', 0), (3, 'calendar', 0), (3, 'create_order', 0), (3, 'kanban', 1), (3, 'admin_panel', 0), (3, 'my_orders', 0),
+(3, 'employees.manage', 0), (3, 'attendance.view', 1), (3, 'attendance.register', 1),
+-- Cliente (id: 4)
+(4, 'dashboard', 0), (4, 'calendar', 0), (4, 'create_order', 0), (4, 'kanban', 0), (4, 'admin_panel', 0), (4, 'my_orders', 1),
+(4, 'employees.manage', 0), (4, 'attendance.view', 0), (4, 'attendance.register', 0),
+-- Operario (id: 5)
+(5, 'dashboard', 0), (5, 'calendar', 0), (5, 'create_order', 0), (5, 'kanban', 1), (5, 'admin_panel', 0), (5, 'my_orders', 0),
+(5, 'employees.manage', 0), (5, 'attendance.view', 1), (5, 'attendance.register', 1)
+ON DUPLICATE KEY UPDATE is_enabled=VALUES(is_enabled);
+
+
+-- Empleados de muestra
+INSERT INTO employees (id, full_name, position, hire_date, contract_type_id, base_salary, is_active, user_id) VALUES
+(1, 'Supervisor Taller', 'Supervisor de Producción', '2022-01-10', 1, 600.00, 1, 2),
+(2, 'Ana García López', 'Operaria de Corte', '2023-03-15', 1, 450.00, 1, NULL),
+(3, 'Carlos Mejía Rivas', 'Operario de Confección', '2023-06-01', 1, 450.00, 1, NULL),
+(4, 'María Torres Vásquez', 'Operaria de Bordado', '2024-01-20', 3, 380.00, 1, NULL)
+ON DUPLICATE KEY UPDATE full_name=VALUES(full_name), position=VALUES(position);
+
+-- Registros de Asistencia de muestra
+INSERT INTO attendance (employee_id, work_date, check_in, check_out, attendance_status_id, stage_id) VALUES
+(1, DATE_SUB(CURDATE(), INTERVAL 2 DAY), '07:55:00', '16:30:00', 1, 1),
+(2, DATE_SUB(CURDATE(), INTERVAL 2 DAY), '08:00:00', '16:00:00', 1, 1),
+(3, DATE_SUB(CURDATE(), INTERVAL 2 DAY), '08:20:00', '16:00:00', 2, 3),
+(1, DATE_SUB(CURDATE(), INTERVAL 1 DAY), '08:00:00', '16:30:00', 1, 1),
+(2, DATE_SUB(CURDATE(), INTERVAL 1 DAY), '08:05:00', '16:00:00', 1, 1),
+(4, DATE_SUB(CURDATE(), INTERVAL 1 DAY), NULL, NULL, 4, NULL),
+(1, CURDATE(), '07:58:00', NULL, 1, 1),
+(2, CURDATE(), '08:00:00', NULL, 1, 1),
+(3, CURDATE(), NULL, NULL, 3, NULL)
+ON DUPLICATE KEY UPDATE check_in=VALUES(check_in), check_out=VALUES(check_out), attendance_status_id=VALUES(attendance_status_id);

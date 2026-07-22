@@ -260,6 +260,41 @@ export interface PasswordResetRequest {
   created_at: string;
 }
 
+export interface ContractType {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface AttendanceStatus {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface Employee {
+  id: number;
+  full_name: string;
+  position: string;
+  hire_date: string;
+  contract_type_id: number;
+  base_salary: number;
+  is_active: boolean;
+  user_id: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Attendance {
+  id: number;
+  employee_id: number;
+  work_date: string;
+  check_in: string | null;
+  check_out: string | null;
+  attendance_status_id: number;
+  stage_id: number | null;
+}
+
 
 
 
@@ -345,6 +380,10 @@ class MockDatabase {
   reworkEvents: ReworkEvent[] = [];
   invoiceSequences: { year: number; next_number: number }[] = [];
   passwordResetRequests: PasswordResetRequest[] = [];
+  contractTypes: ContractType[] = [];
+  attendanceStatuses: AttendanceStatus[] = [];
+  employees: Employee[] = [];
+  attendance: Attendance[] = [];
 
   private nextIds: Record<string, number> = {};
 
@@ -404,6 +443,26 @@ class MockDatabase {
       { role_id: 4, permission_key: 'admin_panel', is_enabled: false },
       { role_id: 4, permission_key: 'my_orders', is_enabled: true },
 
+      // Admin - employees & attendance
+      { role_id: 1, permission_key: 'employees.manage', is_enabled: true },
+      { role_id: 1, permission_key: 'attendance.view', is_enabled: true },
+      { role_id: 1, permission_key: 'attendance.register', is_enabled: true },
+
+      // Tienda - employees & attendance
+      { role_id: 2, permission_key: 'employees.manage', is_enabled: false },
+      { role_id: 2, permission_key: 'attendance.view', is_enabled: false },
+      { role_id: 2, permission_key: 'attendance.register', is_enabled: false },
+
+      // Taller - employees & attendance
+      { role_id: 3, permission_key: 'employees.manage', is_enabled: false },
+      { role_id: 3, permission_key: 'attendance.view', is_enabled: true },
+      { role_id: 3, permission_key: 'attendance.register', is_enabled: true },
+
+      // Cliente - employees & attendance
+      { role_id: 4, permission_key: 'employees.manage', is_enabled: false },
+      { role_id: 4, permission_key: 'attendance.view', is_enabled: false },
+      { role_id: 4, permission_key: 'attendance.register', is_enabled: false },
+
       // Operario permissions
       { role_id: 5, permission_key: 'dashboard', is_enabled: false },
       { role_id: 5, permission_key: 'calendar', is_enabled: false },
@@ -411,6 +470,11 @@ class MockDatabase {
       { role_id: 5, permission_key: 'kanban', is_enabled: true },
       { role_id: 5, permission_key: 'admin_panel', is_enabled: false },
       { role_id: 5, permission_key: 'my_orders', is_enabled: false },
+
+      // Operario - employees & attendance
+      { role_id: 5, permission_key: 'employees.manage', is_enabled: false },
+      { role_id: 5, permission_key: 'attendance.view', is_enabled: true },
+      { role_id: 5, permission_key: 'attendance.register', is_enabled: true },
     ];
 
     // 2. Users (Passwords: admin123, tienda123, taller123, cliente123 - prehashed using bcrypt)
@@ -671,6 +735,64 @@ class MockDatabase {
           task_type: 'normal',
         });
       }
+    });
+
+    // 14. Contract Types
+    this.contractTypes = [
+      { id: 1, code: 'tiempo_completo', name: 'Tiempo Completo' },
+      { id: 2, code: 'medio_tiempo', name: 'Medio Tiempo' },
+      { id: 3, code: 'destajo', name: 'Por producción/destajo' },
+    ];
+    this.nextIds['contract_types'] = 4;
+
+    // 15. Attendance Status
+    this.attendanceStatuses = [
+      { id: 1, code: 'presente', name: 'Presente' },
+      { id: 2, code: 'tardanza', name: 'Tardanza' },
+      { id: 3, code: 'ausente', name: 'Ausente' },
+      { id: 4, code: 'permiso', name: 'Permiso' },
+      { id: 5, code: 'incapacidad', name: 'Incapacidad' },
+    ];
+    this.nextIds['attendance_statuses'] = 6;
+
+    // 16. Employees
+    this.employees = [
+      { id: 1, full_name: 'Supervisor Taller', position: 'Supervisor de Producción', hire_date: '2022-01-10', contract_type_id: 1, base_salary: 600.00, is_active: true, user_id: 3, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { id: 2, full_name: 'Ana García López', position: 'Operaria de Corte', hire_date: '2023-03-15', contract_type_id: 1, base_salary: 450.00, is_active: true, user_id: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { id: 3, full_name: 'Carlos Mejía Rivas', position: 'Operario de Confección', hire_date: '2023-06-01', contract_type_id: 1, base_salary: 450.00, is_active: true, user_id: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { id: 4, full_name: 'María Torres Vásquez', position: 'Operaria de Bordado', hire_date: '2024-01-20', contract_type_id: 3, base_salary: 380.00, is_active: true, user_id: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    ];
+    this.nextIds['employees'] = 5;
+
+    // 17. Attendance records (last 5 days)
+    const todayForAttendance = new Date();
+    const attendanceSeed = [
+      // Day -2
+      { employee_id: 1, daysAgo: 2, check_in: '07:55', check_out: '16:30', status_id: 1, stage_id: 1 },
+      { employee_id: 2, daysAgo: 2, check_in: '08:00', check_out: '16:00', status_id: 1, stage_id: 1 },
+      { employee_id: 3, daysAgo: 2, check_in: '08:20', check_out: '16:00', status_id: 2, stage_id: 3 },
+      // Day -1
+      { employee_id: 1, daysAgo: 1, check_in: '08:00', check_out: '16:30', status_id: 1, stage_id: 1 },
+      { employee_id: 2, daysAgo: 1, check_in: '08:05', check_out: '16:00', status_id: 1, stage_id: 1 },
+      { employee_id: 4, daysAgo: 1, check_in: null, check_out: null, status_id: 4, stage_id: null },
+      // Today
+      { employee_id: 1, daysAgo: 0, check_in: '07:58', check_out: null, status_id: 1, stage_id: 1 },
+      { employee_id: 2, daysAgo: 0, check_in: '08:00', check_out: null, status_id: 1, stage_id: 1 },
+      { employee_id: 3, daysAgo: 0, check_in: null, check_out: null, status_id: 3, stage_id: null },
+    ];
+    attendanceSeed.forEach((seed) => {
+      const d = new Date(todayForAttendance);
+      d.setDate(d.getDate() - seed.daysAgo);
+      const dateStr = d.toISOString().split('T')[0];
+      this.attendance.push({
+        id: this.nextId('attendance'),
+        employee_id: seed.employee_id,
+        work_date: dateStr,
+        check_in: seed.check_in,
+        check_out: seed.check_out,
+        attendance_status_id: seed.status_id,
+        stage_id: seed.stage_id,
+      });
     });
   }
 
