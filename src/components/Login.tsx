@@ -269,18 +269,18 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                       <span className="text-[10px] text-slate-400 dark:text-slate-500">mario.marroquin.2007@gmail</span>
                     </button>
                     <button
-                      onClick={() => quickLogin('tienda@maquila.com', 'tienda123')}
+                      onClick={() => quickLogin('tienda@erplight.com', 'tienda123')}
                       className="text-left px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200 flex flex-col justify-center transition"
                     >
                       <span className="font-semibold text-indigo-600 dark:text-indigo-400">Tienda / Ventas</span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500">tienda@maquila.com</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500">tienda@erplight.com</span>
                     </button>
                     <button
-                      onClick={() => quickLogin('taller@maquila.com', 'taller123')}
+                      onClick={() => quickLogin('taller@erplight.com', 'taller123')}
                       className="text-left px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200 flex flex-col justify-center transition"
                     >
                       <span className="font-semibold text-indigo-600 dark:text-indigo-400">Taller / Supervisor</span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500">taller@maquila.com</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500">taller@erplight.com</span>
                     </button>
                     <button
                       onClick={() => quickLogin('cliente@maquila.com', 'cliente123')}
