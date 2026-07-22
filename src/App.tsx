@@ -8,6 +8,8 @@ import KanbanBoard from './components/KanbanBoard';
 import AdminPanel from './components/AdminPanel';
 import MyOrders from './components/MyOrders';
 import Dashboard from './components/Dashboard';
+import AttendanceModule from './components/AttendanceModule';
+import PayrollPanel from './components/PayrollPanel';
 import { User } from './types';
 import { Toaster } from 'sonner';
 
@@ -96,6 +98,8 @@ export default function App() {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
+  const hasPermission = (permission: string) => !!user?.permissions?.includes(permission);
+
   // Active section renderer
   const renderContent = () => {
     switch (activeTab) {
@@ -128,6 +132,14 @@ export default function App() {
         return <AdminPanel token={token} />;
       case 'my-orders':
         return <MyOrders token={token} />;
+      case 'attendance-register':
+        return hasPermission('attendance.register') ? <AttendanceModule token={token} view="register" /> : null;
+      case 'employees':
+        return hasPermission('employees.manage') ? <AttendanceModule token={token} view="employees" /> : null;
+      case 'attendance-history':
+        return hasPermission('attendance.view') ? <AttendanceModule token={token} view="history" /> : null;
+      case 'payroll':
+        return hasPermission('payroll.view') ? <PayrollPanel token={token} /> : null;
       default:
         return (
           <div className="py-12 text-center text-slate-400 dark:text-slate-500">

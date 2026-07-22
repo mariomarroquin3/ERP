@@ -72,6 +72,11 @@ import {
   registerAttendanceCheckOut,
   getContractTypes,
   getAttendanceStatuses,
+  getPayrollPeriods,
+  getPayrollPeriodDetails,
+  getPayrollPeriodStatuses,
+  generatePayrollPeriod,
+  markPayrollPeriodPaid,
 } from './src/db/queries';
 import { MySqlCustomError } from './src/db/db';
 
@@ -1281,6 +1286,14 @@ app.get('/api/catalogs/attendance-statuses', authenticateToken, async (req: any,
   } catch (err) { next(err); }
 });
 
+// ==========================================
+// PAYROLL ENDPOINTS
+// ==========================================
+app.get('/api/payroll/period-statuses', authenticateToken, requirePermission('payroll.view'), async (_req: any, res: any, next: any) => { try { res.json({ success: true, data: await getPayrollPeriodStatuses() }); } catch (err) { next(err); } });
+app.get('/api/payroll/periods', authenticateToken, requirePermission('payroll.view'), async (_req: any, res: any, next: any) => { try { res.json({ success: true, data: await getPayrollPeriods() }); } catch (err) { next(err); } });
+app.get('/api/payroll/periods/:id/details', authenticateToken, requirePermission('payroll.view'), async (req: any, res: any, next: any) => { try { res.json({ success: true, data: await getPayrollPeriodDetails(Number(req.params.id)) }); } catch (err) { next(err); } });
+app.post('/api/payroll/periods/generate', authenticateToken, requirePermission('payroll.manage'), async (req: any, res: any, next: any) => { try { const { start_date, end_date } = req.body; if (!start_date || !end_date || start_date > end_date) return res.status(400).json({ success:false, message:'Debe indicar un rango de fechas válido.' }); const id=await generatePayrollPeriod(start_date,end_date); res.status(201).json({ success:true, data:{ id } }); } catch (err) { next(err); } });
+app.post('/api/payroll/periods/:id/pay', authenticateToken, requirePermission('payroll.manage'), async (req: any, res: any, next: any) => { try { const ok=await markPayrollPeriodPaid(Number(req.params.id)); if (!ok) return res.status(404).json({ success:false, message:'Período no encontrado o no disponible para pago.' }); res.json({ success:true, message:'Período marcado como pagado.' }); } catch (err) { next(err); } });
 // ==========================================
 // VITE DEV SERVER OR STATIC SERVING IN PROD
 // ==========================================

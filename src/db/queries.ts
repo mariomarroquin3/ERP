@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { getDbPool, mockDb, MySqlCustomError, User, Product, ProductAttribute, ProductSize, Order, OrderItem, ProductionTask, WorkCalendar, Size, ProductAttributeValue, getProductionSchedule, ReworkEvent, ContractType, AttendanceStatus, Employee, Attendance } from './db';
+import { getDbPool, mockDb, MySqlCustomError, User, Product, ProductAttribute, ProductSize, Order, OrderItem, ProductionTask, WorkCalendar, Size, ProductAttributeValue, getProductionSchedule, ReworkEvent, ContractType, AttendanceStatus, Employee, Attendance, PayrollPeriod, PayrollDetail, PayrollPeriodStatus } from './db';
 import {
   snapshotOrderItemSize,
   snapshotOrderItemAttribute,
@@ -2922,3 +2922,53 @@ export async function getAttendanceStatuses(): Promise<AttendanceStatus[]> {
   }
 }
 
+
+// ==========================================================
+// PAYROLL MODULE — calculations are application-layer snapshots
+// ==========================================================
+export async function getPayrollPeriodStatuses(): Promise<PayrollPeriodStatus[]> {
+  const pool = await getDbPool();
+  if (pool) { const [rows]: any = await pool.query('SELECT * FROM payroll_period_status ORDER BY id'); return rows; }
+  return [...mockDb.payrollPeriodStatuses];
+}
+export async function getPayrollPeriods(): Promise<PayrollPeriod[]> {
+  const pool = await getDbPool();
+  if (pool) { const [rows]: any = await pool.query(`SELECT p.*, s.code AS status_code, s.name AS status_name FROM payroll_periods p JOIN payroll_period_status s ON s.id=p.status_id ORDER BY p.start_date DESC`); return rows; }
+  return mockDb.payrollPeriods.map(p => ({ ...p, status_code: mockDb.payrollPeriodStatuses.find(s => s.id === p.status_id)?.code, status_name: mockDb.payrollPeriodStatuses.find(s => s.id === p.status_id)?.name }));
+}
+export async function getPayrollPeriodDetails(periodId: number): Promise<PayrollDetail[]> {
+  const pool = await getDbPool();
+  if (pool) { const [rows]: any = await pool.query(`SELECT d.*, e.full_name AS employee_name, e.position, ct.code AS contract_type_code FROM payroll_details d JOIN employees e ON e.id=d.employee_id JOIN contract_types ct ON ct.id=e.contract_type_id WHERE d.payroll_period_id=? ORDER BY e.full_name`, [periodId]); return rows; }
+  return mockDb.payrollDetails.filter(d => d.payroll_period_id === periodId).map(d => { const e=mockDb.employees.find(x=>x.id===d.employee_id); return {...d, employee_name:e?.full_name, position:e?.position, contract_type_code:mockDb.contractTypes.find(c=>c.id===e?.contract_type_id)?.code}; });
+}
+export async function generatePayrollPeriod(startDate: string, endDate: string): Promise<number> {
+  const pool = await getDbPool();
+  if (pool) {
+    const connection: any = await (pool as any).getConnection();
+    try {
+      await connection.beginTransaction();
+      const [existing]: any = await connection.query('SELECT id FROM payroll_periods WHERE start_date=? AND end_date=? FOR UPDATE', [startDate, endDate]);
+      let periodId: number;
+      if (existing.length) { periodId=existing[0].id; await connection.query('DELETE FROM payroll_details WHERE payroll_period_id=?', [periodId]); await connection.query('UPDATE payroll_periods SET status_id=2, closed_at=NULL WHERE id=?', [periodId]); }
+      else { const [result]: any = await connection.query('INSERT INTO payroll_periods (start_date,end_date,status_id) VALUES (?,?,2)', [startDate,endDate]); periodId=result.insertId; }
+      const [employees]: any = await connection.query(`SELECT e.*, ct.code AS contract_type_code FROM employees e JOIN contract_types ct ON ct.id=e.contract_type_id WHERE e.is_active=1`);
+      for (const e of employees) {
+        const [attendance]: any = await connection.query(`SELECT check_in, check_out FROM attendance a JOIN attendance_status s ON s.id=a.attendance_status_id WHERE a.employee_id=? AND a.work_date BETWEEN ? AND ? AND s.code IN ('presente','tardanza') AND a.check_in IS NOT NULL AND a.check_out IS NOT NULL`, [e.id,startDate,endDate]);
+        const hours=attendance.reduce((sum:number,a:any)=>{ const [ih,im]=String(a.check_in).slice(0,5).split(':').map(Number); const [oh,om]=String(a.check_out).slice(0,5).split(':').map(Number); return sum + Math.max(0,(oh*60+om-ih*60)/60); },0);
+        const days=attendance.length;
+        const manual=e.contract_type_code === 'destajo';
+        const total=manual ? 0 : Number((Number(e.base_salary)/30*days).toFixed(2));
+        await connection.query('INSERT INTO payroll_details (payroll_period_id,employee_id,days_worked,hours_worked,base_salary_snapshot,deductions,total_to_pay,notes) VALUES (?,?,?,?,?,?,?,?)', [periodId,e.id,days,Number(hours.toFixed(2)),e.base_salary,0,total,manual ? 'Contrato por producción/destajo: requiere cálculo manual.' : null]);
+      }
+      await connection.commit(); return periodId;
+    } catch(error) { await connection.rollback(); throw error; } finally { connection.release(); }
+  }
+  const id=mockDb['nextId']('payroll_periods'); mockDb.payrollPeriods.push({id,start_date:startDate,end_date:endDate,status_id:2,closed_at:null});
+  mockDb.employees.filter(e => e.is_active).forEach(e => { const records=mockDb.attendance.filter(a => a.employee_id===e.id && a.work_date>=startDate && a.work_date<=endDate && a.check_in && a.check_out && [1,2].includes(a.attendance_status_id)); const hours=records.reduce((sum,a) => { const [ih,im]=a.check_in!.split(':').map(Number); const [oh,om]=a.check_out!.split(':').map(Number); return sum+(oh*60+om-ih*60)/60; },0); const manual=mockDb.contractTypes.find(c=>c.id===e.contract_type_id)?.code==='destajo'; mockDb.payrollDetails.push({ id:mockDb['nextId']('payroll_details'), payroll_period_id:id, employee_id:e.id, days_worked:records.length, hours_worked:Number(hours.toFixed(2)), base_salary_snapshot:e.base_salary, deductions:0, total_to_pay:manual?0:Number((e.base_salary/30*records.length).toFixed(2)), notes:manual?'Contrato por producción/destajo: requiere cálculo manual.':null }); });
+  return id;
+}
+export async function markPayrollPeriodPaid(periodId: number): Promise<boolean> {
+  const pool = await getDbPool();
+  if (pool) { const [result]: any = await pool.query('UPDATE payroll_periods SET status_id=3, closed_at=NOW() WHERE id=? AND status_id IN (1,2)', [periodId]); return result.affectedRows > 0; }
+  const period=mockDb.payrollPeriods.find(p=>p.id===periodId); if(!period) return false; period.status_id=3; period.closed_at=new Date().toISOString(); return true;
+}

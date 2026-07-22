@@ -39,6 +39,8 @@ SET NAMES utf8mb4;
 -- [contract_types] 1 ------ N [employees] N ------ 1 [users] (opcional)
 --                                |
 --                                +-- 1 ------ N [attendance] N ------ 1 [attendance_status]
+--                                |
+--                                +-- 1 ------ N [payroll_details] N ------ 1 [payroll_periods] N ------ 1 [payroll_period_status]
 --                                                                  |
 --                                                                  +-- N ------ 1 [production_stages] (opcional)
 -- =============================================================================
@@ -512,6 +514,7 @@ ON DUPLICATE KEY UPDATE full_name=VALUES(full_name), email=VALUES(email), role_i
 --    y `product_sizes` con modificadores de precio individuales. Al capturar snapshots 
 --    de estos modificadores al momento de registrar el ítem del pedido, se garantiza la 
 --    consistencia histórica de la facturación y los precios cobrados.
+-- 7. NÓMINA COMO SNAPSHOT: `payroll_details` congela salario base, días, horas, deducciones y total al calcular un período. El cálculo vive en la aplicación; contratos por destajo se etiquetan para cálculo manual hasta definir la fórmula.
 -- 6. RECUPERACIÓN DE CONTRASEÑA CON APROBACIÓN: La tabla `password_reset_requests`
 --    implementa un flujo seguro de restablecimiento de contraseña donde el usuario
 --    solicita el cambio y un administrador debe aprobarlo antes de que el usuario
@@ -568,6 +571,29 @@ CREATE TABLE IF NOT EXISTS attendance (
     CONSTRAINT fk_attendance_stage FOREIGN KEY (stage_id) REFERENCES production_stages (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Tabla de Estados de Período de Nómina
+CREATE TABLE IF NOT EXISTS payroll_period_status (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS payroll_periods (
+    id INT AUTO_INCREMENT PRIMARY KEY, start_date DATE NOT NULL, end_date DATE NOT NULL, status_id INT NOT NULL DEFAULT 1, closed_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_payroll_period_dates CHECK (end_date >= start_date),
+    CONSTRAINT fk_payroll_period_status FOREIGN KEY (status_id) REFERENCES payroll_period_status (id) ON DELETE RESTRICT,
+    UNIQUE KEY uq_payroll_period_dates (start_date, end_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Snapshot por empleado: no cambia si el salario cambia posteriormente.
+CREATE TABLE IF NOT EXISTS payroll_details (
+    id INT AUTO_INCREMENT PRIMARY KEY, payroll_period_id INT NOT NULL, employee_id INT NOT NULL,
+    days_worked DECIMAL(6,2) NOT NULL DEFAULT 0.00, hours_worked DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+    base_salary_snapshot DECIMAL(10,2) NOT NULL, deductions DECIMAL(10,2) NOT NULL DEFAULT 0.00, total_to_pay DECIMAL(10,2) NOT NULL DEFAULT 0.00, notes TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_payroll_detail_period FOREIGN KEY (payroll_period_id) REFERENCES payroll_periods (id) ON DELETE CASCADE,
+    CONSTRAINT fk_payroll_detail_employee FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE RESTRICT,
+    UNIQUE KEY uq_payroll_period_employee (payroll_period_id, employee_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 -- =============================================================================
 -- DATOS DE SEED: Módulo de Empleados y Asistencia
 -- =============================================================================
@@ -592,7 +618,7 @@ ON DUPLICATE KEY UPDATE code=VALUES(code), name=VALUES(name);
 INSERT INTO role_permissions (role_id, permission_key, is_enabled) VALUES
 -- Admin (id: 1)
 (1, 'dashboard', 1), (1, 'calendar', 1), (1, 'create_order', 1), (1, 'kanban', 1), (1, 'admin_panel', 1), (1, 'my_orders', 0),
-(1, 'employees.manage', 1), (1, 'attendance.view', 1), (1, 'attendance.register', 1),
+(1, 'employees.manage', 1), (1, 'attendance.view', 1), (1, 'attendance.register', 1), (1, 'payroll.manage', 1), (1, 'payroll.view', 1),
 -- Tienda (id: 2)
 (2, 'dashboard', 1), (2, 'calendar', 1), (2, 'create_order', 1), (2, 'kanban', 0), (2, 'admin_panel', 0), (2, 'my_orders', 0),
 (2, 'employees.manage', 0), (2, 'attendance.view', 0), (2, 'attendance.register', 0),
@@ -601,10 +627,7 @@ INSERT INTO role_permissions (role_id, permission_key, is_enabled) VALUES
 (3, 'employees.manage', 0), (3, 'attendance.view', 1), (3, 'attendance.register', 1),
 -- Cliente (id: 4)
 (4, 'dashboard', 0), (4, 'calendar', 0), (4, 'create_order', 0), (4, 'kanban', 0), (4, 'admin_panel', 0), (4, 'my_orders', 1),
-(4, 'employees.manage', 0), (4, 'attendance.view', 0), (4, 'attendance.register', 0),
--- Operario (id: 5)
-(5, 'dashboard', 0), (5, 'calendar', 0), (5, 'create_order', 0), (5, 'kanban', 1), (5, 'admin_panel', 0), (5, 'my_orders', 0),
-(5, 'employees.manage', 0), (5, 'attendance.view', 1), (5, 'attendance.register', 1)
+(4, 'employees.manage', 0), (4, 'attendance.view', 0), (4, 'attendance.register', 0)
 ON DUPLICATE KEY UPDATE is_enabled=VALUES(is_enabled);
 
 
@@ -628,3 +651,15 @@ INSERT INTO attendance (employee_id, work_date, check_in, check_out, attendance_
 (2, CURDATE(), '08:00:00', NULL, 1, 1),
 (3, CURDATE(), NULL, NULL, 3, NULL)
 ON DUPLICATE KEY UPDATE check_in=VALUES(check_in), check_out=VALUES(check_out), attendance_status_id=VALUES(attendance_status_id);
+-- Catálogo y seeds de nómina. Usa empleados 1–4 y asistencia existente de días -2/-1.
+INSERT INTO payroll_period_status (id, code, name) VALUES
+(1, 'abierto', 'Abierto'), (2, 'calculado', 'Calculado'), (3, 'pagado', 'Pagado')
+ON DUPLICATE KEY UPDATE code=VALUES(code), name=VALUES(name);
+INSERT INTO payroll_periods (id, start_date, end_date, status_id, closed_at) VALUES
+(1, DATE_SUB(CURDATE(), INTERVAL 2 DAY), DATE_SUB(CURDATE(), INTERVAL 1 DAY), 3, NOW()),
+(2, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 14 DAY), 1, NULL)
+ON DUPLICATE KEY UPDATE status_id=VALUES(status_id), closed_at=VALUES(closed_at);
+INSERT INTO payroll_details (payroll_period_id, employee_id, days_worked, hours_worked, base_salary_snapshot, deductions, total_to_pay, notes) VALUES
+(1, 1, 2.00, 17.08, 600.00, 0.00, 40.00, NULL), (1, 2, 2.00, 15.92, 450.00, 0.00, 30.00, NULL),
+(1, 3, 1.00, 7.67, 450.00, 0.00, 15.00, NULL), (1, 4, 0.00, 0.00, 380.00, 0.00, 0.00, 'Contrato por producción/destajo: requiere cálculo manual.')
+ON DUPLICATE KEY UPDATE days_worked=VALUES(days_worked), hours_worked=VALUES(hours_worked), base_salary_snapshot=VALUES(base_salary_snapshot), deductions=VALUES(deductions), total_to_pay=VALUES(total_to_pay), notes=VALUES(notes);

@@ -384,6 +384,9 @@ class MockDatabase {
   attendanceStatuses: AttendanceStatus[] = [];
   employees: Employee[] = [];
   attendance: Attendance[] = [];
+  payrollPeriodStatuses: PayrollPeriodStatus[] = [];
+  payrollPeriods: PayrollPeriod[] = [];
+  payrollDetails: PayrollDetail[] = [];
 
   private nextIds: Record<string, number> = {};
 
@@ -447,6 +450,8 @@ class MockDatabase {
       { role_id: 1, permission_key: 'employees.manage', is_enabled: true },
       { role_id: 1, permission_key: 'attendance.view', is_enabled: true },
       { role_id: 1, permission_key: 'attendance.register', is_enabled: true },
+      { role_id: 1, permission_key: 'payroll.manage', is_enabled: true },
+      { role_id: 1, permission_key: 'payroll.view', is_enabled: true },
 
       // Tienda - employees & attendance
       { role_id: 2, permission_key: 'employees.manage', is_enabled: false },
@@ -463,18 +468,6 @@ class MockDatabase {
       { role_id: 4, permission_key: 'attendance.view', is_enabled: false },
       { role_id: 4, permission_key: 'attendance.register', is_enabled: false },
 
-      // Operario permissions
-      { role_id: 5, permission_key: 'dashboard', is_enabled: false },
-      { role_id: 5, permission_key: 'calendar', is_enabled: false },
-      { role_id: 5, permission_key: 'create_order', is_enabled: false },
-      { role_id: 5, permission_key: 'kanban', is_enabled: true },
-      { role_id: 5, permission_key: 'admin_panel', is_enabled: false },
-      { role_id: 5, permission_key: 'my_orders', is_enabled: false },
-
-      // Operario - employees & attendance
-      { role_id: 5, permission_key: 'employees.manage', is_enabled: false },
-      { role_id: 5, permission_key: 'attendance.view', is_enabled: true },
-      { role_id: 5, permission_key: 'attendance.register', is_enabled: true },
     ];
 
     // 2. Users (Passwords: admin123, tienda123, taller123, cliente123 - prehashed using bcrypt)
@@ -484,9 +477,8 @@ class MockDatabase {
       { id: 2, full_name: 'Tienda Ventas', email: 'tienda@maquila.com', password_hash: '$2a$10$fG6T5R8V0v.M1pD.W6uHDe8n09Rj7P.A3l0E3gY5m1BqEshVMy1f2', role_id: 2, is_active: true },
       { id: 3, full_name: 'Supervisor Taller', email: 'taller@maquila.com', password_hash: '$2a$10$fG6T5R8V0v.M1pD.W6uHDe8n09Rj7P.A3l0E3gY5m1BqEshVMy1f2', role_id: 3, is_active: true },
       { id: 4, full_name: 'Cliente Ejemplo', email: 'cliente@maquila.com', password_hash: '$2a$10$fG6T5R8V0v.M1pD.W6uHDe8n09Rj7P.A3l0E3gY5m1BqEshVMy1f2', role_id: 4, is_active: true },
-      { id: 5, full_name: 'Operario Juan', email: 'operario@maquila.com', password_hash: '$2a$10$fG6T5R8V0v.M1pD.W6uHDe8n09Rj7P.A3l0E3gY5m1BqEshVMy1f2', role_id: 5, is_active: true },
     ];
-    this.nextIds['users'] = 6;
+    this.nextIds['users'] = 5;
 
     // 3. Product Types
     this.productTypes = [
@@ -737,6 +729,10 @@ class MockDatabase {
       }
     });
 
+    this.payrollPeriodStatuses = [{ id: 1, code: 'abierto', name: 'Abierto' }, { id: 2, code: 'calculado', name: 'Calculado' }, { id: 3, code: 'pagado', name: 'Pagado' }];
+    this.nextIds['payroll_periods'] = 3;
+    this.nextIds['payroll_details'] = 1;
+
     // 14. Contract Types
     this.contractTypes = [
       { id: 1, code: 'tiempo_completo', name: 'Tiempo Completo' },
@@ -913,3 +909,9 @@ export async function getDbPool(): Promise<Pool | null> {
   }
 }
 // Mensaje para guardar el db.ts en el commit
+// ==========================================
+// PAYROLL MODULE
+// ==========================================
+export interface PayrollPeriodStatus { id: number; code: string; name: string; }
+export interface PayrollPeriod { id: number; start_date: string; end_date: string; status_id: number; closed_at: string | null; created_at?: string; updated_at?: string; status_code?: string; status_name?: string; }
+export interface PayrollDetail { id: number; payroll_period_id: number; employee_id: number; days_worked: number; hours_worked: number; base_salary_snapshot: number; deductions: number; total_to_pay: number; notes: string | null; employee_name?: string; position?: string; contract_type_code?: string; }
