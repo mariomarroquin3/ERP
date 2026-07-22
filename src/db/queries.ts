@@ -136,10 +136,10 @@ export async function resetPassword(email: string, newPasswordHash: string): Pro
 export async function getProducts(): Promise<Product[]> {
   const pool = await getDbPool();
   if (pool) {
-    const [rows]: any = await pool.query('SELECT * FROM products WHERE active = TRUE');
+    const [rows]: any = await pool.query('SELECT p.*, pt.name AS product_type_name FROM products p JOIN product_types pt ON pt.id = p.product_type_id WHERE p.active = TRUE');
     return rows;
   } else {
-    return mockDb.products.filter((p) => p.active);
+    return mockDb.products.filter((p) => p.active).map((p) => ({ ...p, product_type_name: mockDb.productTypes.find((pt) => pt.id === p.product_type_id)?.name }));
   }
 }
 
@@ -183,30 +183,30 @@ export async function getProductAttributes(productId: number): Promise<ProductAt
 export async function getProductSizes(productId: number): Promise<ProductSize[]> {
   const pool = await getDbPool();
   if (pool) {
-    const [rows]: any = await pool.query(
-      `SELECT ps.*, s.code as size_code, s.name as size_name, s.gender as size_gender 
-       FROM product_sizes ps 
-       JOIN sizes s ON ps.size_id = s.id 
-       WHERE ps.product_id = ? AND ps.active = TRUE
-       ORDER BY s.sort_order`,
-      [productId]
-    );
+    // Migration-safe category: shirt sizes and numeric pant sizes coexist in one catalog.
+    await pool.query("ALTER TABLE sizes ADD COLUMN apparel_category VARCHAR(50) NOT NULL DEFAULT 'camisa'").catch(() => undefined);
+    await pool.query("UPDATE sizes SET apparel_category = CASE WHEN code LIKE 'P-%' THEN 'pantalon' ELSE 'camisa' END WHERE id > 0");
+    const [productRows]: any = await pool.query('SELECT pt.name FROM products p JOIN product_types pt ON pt.id = p.product_type_id WHERE p.id = ?', [productId]);
+    const isPants = /pantal[oó]n|jeans?|inferior/i.test(productRows[0]?.name || '');
+    const category = isPants ? 'pantalon' : 'camisa';
+    // Makes newly catalogued sizes available to products of the matching garment class.
+    await pool.query(`INSERT IGNORE INTO product_sizes (product_id, size_id, price_modifier, active)
+      SELECT ?, id, 0.00, TRUE FROM sizes WHERE apparel_category = ?`, [productId, category]);
+    const [rows]: any = await pool.query(`SELECT ps.*, s.code AS size_code, s.name AS size_name, s.gender AS size_gender, s.apparel_category
+      FROM product_sizes ps JOIN sizes s ON ps.size_id = s.id
+      WHERE ps.product_id = ? AND ps.active = TRUE AND s.apparel_category = ? ORDER BY s.sort_order`, [productId, category]);
     return rows;
-  } else {
-    return mockDb.productSizes
-      .filter((ps) => ps.product_id === productId && ps.active)
-      .map((ps) => {
-        const sz = mockDb.sizes.find((s) => s.id === ps.size_id);
-        return {
-          ...ps,
-          size_code: sz?.code || '',
-          size_name: sz?.name || '',
-          size_gender: sz?.gender || '',
-        };
-      });
   }
+  const product = mockDb.products.find((item) => item.id === productId);
+  const isPants = product?.product_type_id === 3;
+  return mockDb.productSizes.filter((ps) => {
+    const size = mockDb.sizes.find((s) => s.id === ps.size_id);
+    return ps.product_id === productId && ps.active && (isPants ? size?.code.startsWith('P-') : !size?.code.startsWith('P-'));
+  }).map((ps) => {
+    const size = mockDb.sizes.find((s) => s.id === ps.size_id);
+    return { ...ps, size_code: size?.code || '', size_name: size?.name || '', size_gender: size?.gender || '', apparel_category: size?.code.startsWith('P-') ? 'pantalon' : 'camisa' };
+  });
 }
-
 // 3. Orders Queries
 export async function getOrders(clientId?: number): Promise<Order[]> {
   const pool = await getDbPool();
@@ -1119,6 +1119,16 @@ export async function getCatalogSizes(): Promise<Size[]> {
         await pool.query("UPDATE sizes SET gender = 'hombre' WHERE code IN ('XS', 'S', 'M', 'L', 'XL', 'XXL')");
       });
 
+      // Ensure the numeric scales for lower garments exist even on databases created before this module.
+      await pool.query("ALTER TABLE sizes ADD COLUMN apparel_category VARCHAR(50) NOT NULL DEFAULT 'camisa'").catch(() => undefined);
+      const pants = [
+        ...[4, 6, 8, 12, 28, 30, 32, 34, 36, 38, 40, 42].map((n, i) => ({ code: `P-H-${n}`, name: `${n} Hombre`, sort: 101 + i, gender: 'hombre' })),
+        ...[6, 8, 10, 12, 14, 16, 18, 20].map((n, i) => ({ code: `P-M-${n}`, name: `${n} Mujer`, sort: 121 + i, gender: 'mujer' })),
+      ];
+      for (const size of pants) {
+        await pool.query(`INSERT INTO sizes (code, name, sort_order, gender, apparel_category) VALUES (?, ?, ?, ?, 'pantalon')
+          ON DUPLICATE KEY UPDATE name=VALUES(name), sort_order=VALUES(sort_order), gender=VALUES(gender), apparel_category='pantalon'`, [size.code, size.name, size.sort, size.gender]);
+      }
       // Check if both genders are represented (specifically 'mujer')
       const [genderCheck]: any = await pool.query("SELECT COUNT(*) as count FROM sizes WHERE gender = 'mujer'");
       const hasMujerSizes = genderCheck && genderCheck[0] && genderCheck[0].count > 0;

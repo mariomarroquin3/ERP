@@ -18,6 +18,7 @@ export interface Product {
   base_price: number;
   active: boolean;
   product_type_id: number;
+  product_type_name?: string;
 }
 
 export interface AttributeType {
@@ -55,6 +56,7 @@ export interface ProductSize {
   size_code?: string;
   size_name?: string;
   size_gender?: string;
+  apparel_category?: 'camisa' | 'pantalon' | 'unisex';
 }
 
 export interface Size {
@@ -63,6 +65,7 @@ export interface Size {
   name: string;
   sort_order: number;
   gender?: string;
+  apparel_category?: 'camisa' | 'pantalon' | 'unisex';
 }
 
 export interface OrderItemSize {

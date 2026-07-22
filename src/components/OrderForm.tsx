@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  User as UserIcon, 
-  Calendar as CalendarIcon, 
-  Tag, 
-  Layers, 
-  FileText, 
-  UploadCloud, 
-  CheckCircle, 
-  AlertCircle, 
-  Trash2, 
-  Plus, 
+import {
+  User as UserIcon,
+  Calendar as CalendarIcon,
+  Tag,
+  Layers,
+  FileText,
+  UploadCloud,
+  CheckCircle,
+  AlertCircle,
+  Trash2,
+  Plus,
   ArrowLeft,
   ChevronRight,
   Info,
@@ -46,11 +46,11 @@ const calculateSuggestedDate = (startDateStr: string, p: 'low' | 'medium' | 'hig
   const year = parseInt(parts[0], 10);
   const month = parseInt(parts[1], 10) - 1;
   const day = parseInt(parts[2], 10);
-  
+
   const date = new Date(year, month, day);
   const days = getDaysForPriority(p);
   date.setDate(date.getDate() + days);
-  
+
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
@@ -64,14 +64,14 @@ const formatDateSpanish = (dateStr: string): string => {
   const year = parts[0];
   const month = parts[1];
   const day = parts[2];
-  
+
   const months = [
     'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
     'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
   ];
   const monthIdx = parseInt(month, 10) - 1;
   const monthName = months[monthIdx] || month;
-  
+
   return `${day} ${monthName} ${year}`;
 };
 
@@ -81,7 +81,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
   const [clients, setClients] = useState<User[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
   const [clientSearch, setClientSearch] = useState('');
-  
+
   // Products list
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
@@ -96,17 +96,26 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
     const term = productSearch.toLowerCase();
     return p.name.toLowerCase().includes(term) || (p.description && p.description.toLowerCase().includes(term));
   });
-  
+
   // Product details (sizes & attributes)
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
   const [sizes, setSizes] = useState<ProductSize[]>([]);
-  
+  const selectedProduct = products.find((product) => product.id === parseInt(selectedProductId, 10));
+  const isPantsProduct = !!selectedProduct && (
+    selectedProduct.product_type_id === 3 ||
+    /pantal[oó]n|jeans?|inferior/i.test(selectedProduct.product_type_name || '')
+  );
+  const displayedSizes = sizes.filter((size) => isPantsProduct
+    ? size.size_code?.startsWith('P-') || size.apparel_category === 'pantalon'
+    : !size.size_code?.startsWith('P-') && size.apparel_category !== 'pantalon'
+  );
+
   // Form values
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
   const [notes, setNotes] = useState('');
   const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState('');
   const [productionStartDate, setProductionStartDate] = useState('');
-  
+
   // Order Quantities & Attr selections
   const [sizeQuantities, setSizeQuantities] = useState<Record<string, number>>({}); // product_size_id -> quantity
   const [attributeSelections, setAttributeSelections] = useState<Record<string, { attribute_value_id: number | null, custom_value: string | null }>>({}); // attribute_id -> values
@@ -199,7 +208,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
       if (data.success) {
         setAttributes(data.attributes);
         setSizes(data.sizes);
-        
+
         // Reset inputs
         const initialQtys: Record<string, number> = {};
         data.sizes.forEach((s: ProductSize) => {
@@ -354,7 +363,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
         // Here we parse Custom Database Triggers exception codes (e.g., ERR_CAPACITY_EXCEEDED)
         const errorCode = data.code || 'DB_ERROR';
         const errorMessage = data.message || 'Error al guardar pedido';
-        
+
         if (errorCode === 'ERR_CAPACITY_EXCEEDED' || errorMessage.includes('45001') || errorMessage.includes('CAPACITY_EXCEEDED')) {
           checkCalendarCapacity();
         }
@@ -365,7 +374,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
     } catch (err: any) {
       const errMsg = err.message || 'Error inesperado al conectar con el servidor.';
       setError(errMsg);
-      
+
       if (errMsg.includes('ERR_CAPACITY_EXCEEDED') || errMsg.includes('45001') || errMsg.includes('CAPACITY_EXCEEDED')) {
         setFormError('CAPACIDAD DE TALLER EXCEDIDA: Por favor ajusta la Fecha de Inicio en Taller o la Fecha de Entrega Estimada para distribuir la carga de trabajo en días con suficiente capacidad disponible.');
         checkCalendarCapacity();
@@ -378,9 +387,9 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
   const calculateEstimation = () => {
     const product = products.find(p => p.id === parseInt(selectedProductId, 10));
     if (!product) return 0;
-    
+
     let total = Number(product.base_price);
-    
+
     // Add attr price modifiers
     Object.entries(attributeSelections).forEach(([attrId, sel]: [string, any]) => {
       const attr = attributes.find(a => a.id === parseInt(attrId, 10));
@@ -464,7 +473,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
+
           {/* Column 1: Client & General details */}
           <div className="md:col-span-1 space-y-5">
             <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4 shadow-xs">
@@ -472,7 +481,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
               {/* Client select */}
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Cliente Solicitante</label>
-                
+
                 {/* Search input */}
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -554,7 +563,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                         type="button"
                         onClick={() => handlePriorityChange(p)}
                         className={`px-2 py-1.5 text-[10px] font-bold rounded-xl border transition uppercase flex flex-col items-center justify-center gap-0.5 ${
-                          priority === p 
+                          priority === p
                             ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
                             : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                         }`}
@@ -611,7 +620,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                     onChange={(e) => setEstimatedDeliveryDate(e.target.value)}
                     className="block w-full py-2 px-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50/50 text-slate-900 text-xs font-mono dark:text-slate-100 dark:border-slate-700 dark:bg-slate-800/50"
                   />
-                  
+
                   {/* Interactive Date Suggestion Panel based on Priority */}
                   <div className="bg-slate-50/85 p-3 rounded-xl border border-slate-200/70 mt-2 space-y-1.5">
                     <span className="text-[9px] font-bold text-slate-500 block uppercase tracking-wider dark:text-slate-400">
@@ -624,7 +633,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                         const days = getDaysForPriority(p);
                         const isCurrentPriority = priority === p;
                         const isCurrentDate = estimatedDeliveryDate === dateSug;
-                        
+
                         return (
                           <button
                             key={p}
@@ -707,7 +716,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                             </span>
                           </div>
                           <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden dark:bg-slate-700">
-                            <div 
+                            <div
                               className={`h-full transition-all duration-300 ${hasCapacity ? 'bg-indigo-600' : 'bg-red-500'}`}
                               style={{ width: `${Math.min(100, (stage.committed_points / stage.max_capacity_points) * 100)}%` }}
                             />
@@ -738,7 +747,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
               {/* Product selector */}
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Producto del Catálogo</label>
-                
+
                 {/* Search input */}
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -811,16 +820,16 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                     <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 dark:text-slate-400">
                       Matriz de Tallas (Cantidades)
                     </h4>
-                    
+
                     <div className="space-y-4">
                       {/* Tallas de Hombre */}
-                      {sizes.filter(sz => sz.size_gender === 'hombre' || sz.size_code?.startsWith('H-')).length > 0 && (
+                      {displayedSizes.filter(sz => sz.size_gender === 'hombre' || sz.size_code?.startsWith('H-')).length > 0 && (
                         <div>
                           <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block mb-1.5 bg-indigo-50/50 dark:bg-indigo-900/20 py-1 px-2.5 rounded-lg w-max">
                             👔 Colección de Caballeros
                           </span>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                            {sizes.filter(sz => sz.size_gender === 'hombre' || sz.size_code?.startsWith('H-')).map((sz) => (
+                            {displayedSizes.filter(sz => sz.size_gender === 'hombre' || sz.size_code?.startsWith('H-')).map((sz) => (
                               <div key={sz.id} className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 flex flex-col justify-between">
                                 <div>
                                   <span className="text-xs font-black text-slate-800 dark:text-slate-200 block uppercase">{sz.size_code || 'Talla'}</span>
@@ -846,13 +855,13 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                       )}
 
                       {/* Tallas de Mujer */}
-                      {sizes.filter(sz => sz.size_gender === 'mujer' || sz.size_code?.startsWith('M-')).length > 0 && (
+                      {displayedSizes.filter(sz => sz.size_gender === 'mujer' || sz.size_code?.startsWith('M-')).length > 0 && (
                         <div>
                           <span className="text-[10px] font-bold text-pink-600 dark:text-pink-400 uppercase tracking-wider block mb-1.5 bg-pink-50/50 dark:bg-pink-900/20 py-1 px-2.5 rounded-lg w-max">
                             👚 Colección de Damas
                           </span>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                            {sizes.filter(sz => sz.size_gender === 'mujer' || sz.size_code?.startsWith('M-')).map((sz) => (
+                            {displayedSizes.filter(sz => sz.size_gender === 'mujer' || sz.size_code?.startsWith('M-')).map((sz) => (
                               <div key={sz.id} className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 flex flex-col justify-between">
                                 <div>
                                   <span className="text-xs font-black text-slate-800 dark:text-slate-200 block uppercase">{sz.size_code || 'Talla'}</span>
@@ -878,10 +887,10 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                       )}
 
                       {/* Unisex/Other Sizes */}
-                      {sizes.filter(sz => 
-                        sz.size_gender !== 'hombre' && 
-                        sz.size_gender !== 'mujer' && 
-                        !sz.size_code?.startsWith('H-') && 
+                      {displayedSizes.filter(sz =>
+                        sz.size_gender !== 'hombre' &&
+                        sz.size_gender !== 'mujer' &&
+                        !sz.size_code?.startsWith('H-') &&
                         !sz.size_code?.startsWith('M-')
                       ).length > 0 && (
                         <div>
@@ -889,10 +898,10 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                             🌐 Colección Estándar / Unisex
                           </span>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                            {sizes.filter(sz => 
-                              sz.size_gender !== 'hombre' && 
-                              sz.size_gender !== 'mujer' && 
-                              !sz.size_code?.startsWith('H-') && 
+                            {displayedSizes.filter(sz =>
+                              sz.size_gender !== 'hombre' &&
+                              sz.size_gender !== 'mujer' &&
+                              !sz.size_code?.startsWith('H-') &&
                               !sz.size_code?.startsWith('M-')
                             ).map((sz) => (
                               <div key={sz.id} className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 flex flex-col justify-between">
@@ -963,8 +972,8 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                                 />
                                 {attr.attribute_name.toLowerCase().includes('bordado') && (
                                   <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block leading-none">
-                                    {selection.custom_value && selection.custom_value.trim() !== '' 
-                                      ? '✓ Recargo por bordado personalizado aplicado: +$2.50' 
+                                    {selection.custom_value && selection.custom_value.trim() !== ''
+                                      ? '✓ Recargo por bordado personalizado aplicado: +$2.50'
                                       : '* El bordado personalizado tiene un recargo de +$2.50'}
                                   </span>
                                 )}
@@ -982,7 +991,7 @@ export default function OrderForm({ token, onSuccess, onCancel }: OrderFormProps
                     <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 dark:text-slate-400">
                       Subida de Logotipos y Bordados Adjuntos
                     </h4>
-                    
+
                     <div className="space-y-3">
                       {/* Local image upload */}
                       <div className="flex gap-2">

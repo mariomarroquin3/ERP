@@ -98,7 +98,8 @@ CREATE TABLE IF NOT EXISTS sizes (
     code VARCHAR(20) NOT NULL UNIQUE,
     name VARCHAR(50) NOT NULL,
     sort_order INT NOT NULL,
-    gender VARCHAR(50) NOT NULL DEFAULT 'unisex'
+    gender VARCHAR(50) NOT NULL DEFAULT 'unisex',
+    apparel_category VARCHAR(50) NOT NULL DEFAULT 'camisa'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -480,8 +481,15 @@ INSERT INTO sizes (id, code, name, sort_order, gender) VALUES
 (9, 'M-M', 'M Mujer', 13, 'mujer'),
 (10, 'M-L', 'L Mujer', 14, 'mujer'),
 (11, 'M-XL', 'XL Mujer', 15, 'mujer'),
-(12, 'M-XXL', 'XXL Mujer', 16, 'mujer')
+(12, 'M-XXL', 'XXL Mujer', 16, 'mujer'),
+(13, 'P-H-4', '4 Hombre', 101, 'hombre'), (14, 'P-H-6', '6 Hombre', 102, 'hombre'), (15, 'P-H-8', '8 Hombre', 103, 'hombre'), (16, 'P-H-12', '12 Hombre', 104, 'hombre'),
+(17, 'P-H-28', '28 Hombre', 105, 'hombre'), (18, 'P-H-30', '30 Hombre', 106, 'hombre'), (19, 'P-H-32', '32 Hombre', 107, 'hombre'), (20, 'P-H-34', '34 Hombre', 108, 'hombre'),
+(21, 'P-H-36', '36 Hombre', 109, 'hombre'), (22, 'P-H-38', '38 Hombre', 110, 'hombre'), (23, 'P-H-40', '40 Hombre', 111, 'hombre'), (24, 'P-H-42', '42 Hombre', 112, 'hombre'),
+(25, 'P-M-6', '6 Mujer', 121, 'mujer'), (26, 'P-M-8', '8 Mujer', 122, 'mujer'), (27, 'P-M-10', '10 Mujer', 123, 'mujer'), (28, 'P-M-12', '12 Mujer', 124, 'mujer'),
+(29, 'P-M-14', '14 Mujer', 125, 'mujer'), (30, 'P-M-16', '16 Mujer', 126, 'mujer'), (31, 'P-M-18', '18 Mujer', 127, 'mujer'), (32, 'P-M-20', '20 Mujer', 128, 'mujer')
 ON DUPLICATE KEY UPDATE code=VALUES(code), name=VALUES(name), sort_order=VALUES(sort_order), gender=VALUES(gender);
+
+UPDATE sizes SET apparel_category = CASE WHEN code LIKE 'P-%' THEN 'pantalon' ELSE 'camisa' END WHERE id > 0;
 
 -- Inserción de Usuarios de Prueba (Contraseña en hash correspondiente a '123456')
 INSERT INTO users (id, full_name, email, password_hash, role_id, is_active) VALUES

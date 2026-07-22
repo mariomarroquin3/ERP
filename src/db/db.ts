@@ -59,6 +59,7 @@ export interface Size {
   name: string;
   sort_order: number;
   gender?: string;
+  apparel_category?: 'camisa' | 'pantalon' | 'unisex';
 }
 
 export interface Product {
@@ -67,6 +68,7 @@ export interface Product {
   base_price: number;
   active: boolean;
   product_type_id: number;
+  product_type_name?: string;
 }
 
 export interface ProductAttribute {
@@ -550,7 +552,12 @@ class MockDatabase {
       { id: 11, code: 'M-XL', name: 'XL Mujer', sort_order: 15, gender: 'mujer' },
       { id: 12, code: 'M-XXL', name: 'XXL Mujer', sort_order: 16, gender: 'mujer' },
     ];
-    this.nextIds['sizes'] = 13;
+    const menPantSizes = [4, 6, 8, 12, 28, 30, 32, 34, 36, 38, 40, 42];
+    const womenPantSizes = [6, 8, 10, 12, 14, 16, 18, 20];
+    this.sizes.push(
+      ...menPantSizes.map((size, index) => ({ id: 13 + index, code: `P-H-${size}`, name: `${size} Hombre`, sort_order: 101 + index, gender: 'hombre' })),
+      ...womenPantSizes.map((size, index) => ({ id: 25 + index, code: `P-M-${size}`, name: `${size} Mujer`, sort_order: 121 + index, gender: 'mujer' }))
+    );    this.nextIds['sizes'] = 33;
 
     // 9. Products
     this.products = [
@@ -615,7 +622,9 @@ class MockDatabase {
       { id: 19, product_id: 3, size_id: 9, price_modifier: 0.00, active: true }, // M-M
       { id: 20, product_id: 3, size_id: 10, price_modifier: 0.00, active: true }, // M-L
     ];
-    this.nextIds['product_sizes'] = 21;
+    // Replace the legacy shirt scale of the sample trouser with numeric pant sizes.
+    this.productSizes = this.productSizes.filter((size) => size.product_id !== 3);
+    [...Array(20)].forEach((_, index) => this.productSizes.push({ id: 21 + index, product_id: 3, size_id: 13 + index, price_modifier: 0, active: true }));    this.nextIds['product_sizes'] = 41;
 
     // 12. Seed Work Calendar (Default max capacities for next 30 days)
     const today = new Date();
