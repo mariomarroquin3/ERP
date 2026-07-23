@@ -2952,6 +2952,28 @@ export async function getPayrollPeriodDetails(periodId: number): Promise<Payroll
   return mockDb.payrollDetails.filter(d => d.payroll_period_id === periodId).map(d => { const e=mockDb.employees.find(x=>x.id===d.employee_id); return {...d, employee_name:e?.full_name, position:e?.position, contract_type_code:mockDb.contractTypes.find(c=>c.id===e?.contract_type_id)?.code}; });
 }
 export async function generatePayrollPeriod(startDate: string, endDate: string): Promise<number> {
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T23:59:59');
+  const quincenas = [];
+  let current = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (current <= end) {
+    const y = current.getFullYear();
+    const m = current.getMonth() + 1;
+    const q1Start = new Date(y, m - 1, 1);
+    const q1End = new Date(y, m - 1, 15, 23, 59, 59);
+    const q2Start = new Date(y, m - 1, 16);
+    const q2End = new Date(y, m, 0, 23, 59, 59);
+    if (q1Start <= end && q1End >= start) quincenas.push({ year: y, month: m, number: 1 });
+    if (q2Start <= end && q2End >= start) quincenas.push({ year: y, month: m, number: 2 });
+    current = new Date(y, m, 1);
+  }
+  if (quincenas.length === 0) throw new Error('El rango seleccionado no cubre ninguna quincena válida.');
+
+  const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  const qList = quincenas.map(q => `Quincena ${q.number} (${monthNames[q.month - 1]})`);
+  const notesStr = qList.join(', ');
+  const qCount = quincenas.length;
+
   const pool = await getDbPool();
   if (pool) {
     const connection: any = await (pool as any).getConnection();
@@ -2959,26 +2981,99 @@ export async function generatePayrollPeriod(startDate: string, endDate: string):
       await connection.beginTransaction();
       const [existing]: any = await connection.query('SELECT id FROM payroll_periods WHERE start_date=? AND end_date=? FOR UPDATE', [startDate, endDate]);
       let periodId: number;
-      if (existing.length) { periodId=existing[0].id; await connection.query('DELETE FROM payroll_details WHERE payroll_period_id=?', [periodId]); await connection.query('UPDATE payroll_periods SET status_id=2, closed_at=NULL WHERE id=?', [periodId]); }
-      else { const [result]: any = await connection.query('INSERT INTO payroll_periods (start_date,end_date,status_id) VALUES (?,?,2)', [startDate,endDate]); periodId=result.insertId; }
+      if (existing.length) { 
+        periodId = existing[0].id; 
+        await connection.query('DELETE FROM payroll_details WHERE payroll_period_id=?', [periodId]); 
+        await connection.query('DELETE FROM payroll_period_quincenas WHERE payroll_period_id=?', [periodId]);
+        await connection.query('UPDATE payroll_periods SET status_id=2, closed_at=NULL WHERE id=?', [periodId]); 
+      } else { 
+        const [result]: any = await connection.query('INSERT INTO payroll_periods (start_date,end_date,status_id) VALUES (?,?,2)', [startDate,endDate]); 
+        periodId = result.insertId; 
+      }
+
+      for (const q of quincenas) {
+        try {
+          await connection.query('INSERT INTO payroll_period_quincenas (payroll_period_id, year, month, quincena_number) VALUES (?, ?, ?, ?)', [periodId, q.year, q.month, q.number]);
+        } catch (err: any) {
+          if (err.code === 'ER_DUP_ENTRY') throw new Error(`La quincena ${q.number} del mes ${q.month}/${q.year} ya ha sido calculada en otro período.`);
+          throw err;
+        }
+      }
+
       const [employees]: any = await connection.query(`SELECT e.*, ct.code AS contract_type_code FROM employees e JOIN contract_types ct ON ct.id=e.contract_type_id WHERE e.is_active=1`);
       for (const e of employees) {
-        const [attendance]: any = await connection.query(`SELECT check_in, check_out FROM attendance a JOIN attendance_status s ON s.id=a.attendance_status_id WHERE a.employee_id=? AND a.work_date BETWEEN ? AND ? AND s.code IN ('presente','tardanza') AND a.check_in IS NOT NULL AND a.check_out IS NOT NULL`, [e.id,startDate,endDate]);
-        const hours=attendance.reduce((sum:number,a:any)=>{ const [ih,im]=String(a.check_in).slice(0,5).split(':').map(Number); const [oh,om]=String(a.check_out).slice(0,5).split(':').map(Number); return sum + Math.max(0,(oh*60+om-ih*60)/60); },0);
-        const days=attendance.length;
-        const manual=e.contract_type_code === 'destajo';
-        const total=manual ? 0 : Number((Number(e.base_salary)/30*days).toFixed(2));
-        await connection.query('INSERT INTO payroll_details (payroll_period_id,employee_id,days_worked,hours_worked,base_salary_snapshot,deductions,total_to_pay,notes) VALUES (?,?,?,?,?,?,?,?)', [periodId,e.id,days,Number(hours.toFixed(2)),e.base_salary,0,total,manual ? 'Contrato por producción/destajo: requiere cálculo manual.' : null]);
+        const manual = e.contract_type_code === 'destajo';
+        const total = manual ? 0 : Number(((Number(e.base_salary) / 2) * qCount).toFixed(2));
+        await connection.query('INSERT INTO payroll_details (payroll_period_id,employee_id,days_worked,hours_worked,base_salary_snapshot,deductions,total_to_pay,notes) VALUES (?,?,?,?,?,?,?,?)', [periodId, e.id, 0, 0, e.base_salary, 0, total, manual ? 'Contrato por producción/destajo: requiere cálculo manual.' : notesStr]);
       }
       await connection.commit(); return periodId;
     } catch(error) { await connection.rollback(); throw error; } finally { connection.release(); }
   }
-  const id=mockDb['nextId']('payroll_periods'); mockDb.payrollPeriods.push({id,start_date:startDate,end_date:endDate,status_id:2,closed_at:null});
-  mockDb.employees.filter(e => e.is_active).forEach(e => { const records=mockDb.attendance.filter(a => a.employee_id===e.id && a.work_date>=startDate && a.work_date<=endDate && a.check_in && a.check_out && [1,2].includes(a.attendance_status_id)); const hours=records.reduce((sum,a) => { const [ih,im]=a.check_in!.split(':').map(Number); const [oh,om]=a.check_out!.split(':').map(Number); return sum+(oh*60+om-ih*60)/60; },0); const manual=mockDb.contractTypes.find(c=>c.id===e.contract_type_id)?.code==='destajo'; mockDb.payrollDetails.push({ id:mockDb['nextId']('payroll_details'), payroll_period_id:id, employee_id:e.id, days_worked:records.length, hours_worked:Number(hours.toFixed(2)), base_salary_snapshot:e.base_salary, deductions:0, total_to_pay:manual?0:Number((e.base_salary/30*records.length).toFixed(2)), notes:manual?'Contrato por producción/destajo: requiere cálculo manual.':null }); });
-  return id;
+
+  // Sandbox mockDb fallback
+  if (!(mockDb as any).payrollPeriodQuincenas) (mockDb as any).payrollPeriodQuincenas = [];
+  const existingMock = mockDb.payrollPeriods.find(p => p.start_date === startDate && p.end_date === endDate);
+  const periodId = existingMock ? existingMock.id : mockDb['nextId']('payroll_periods');
+  
+  for (const q of quincenas) {
+    const dup = (mockDb as any).payrollPeriodQuincenas.find((pq: any) => pq.year === q.year && pq.month === q.month && pq.quincena_number === q.number && pq.payroll_period_id !== periodId);
+    if (dup) throw new Error(`La quincena ${q.number} del mes ${q.month}/${q.year} ya ha sido calculada en otro período.`);
+  }
+
+  if (existingMock) {
+    existingMock.status_id = 2;
+    existingMock.closed_at = null;
+    mockDb.payrollDetails = mockDb.payrollDetails.filter(d => d.payroll_period_id !== periodId);
+    (mockDb as any).payrollPeriodQuincenas = (mockDb as any).payrollPeriodQuincenas.filter((pq: any) => pq.payroll_period_id !== periodId);
+  } else {
+    mockDb.payrollPeriods.push({id: periodId, start_date: startDate, end_date: endDate, status_id: 2, closed_at: null});
+  }
+
+  for (const q of quincenas) {
+    (mockDb as any).payrollPeriodQuincenas.push({ id: Math.random(), payroll_period_id: periodId, year: q.year, month: q.month, quincena_number: q.number });
+  }
+
+  mockDb.employees.filter(e => e.is_active).forEach(e => {
+    const manual = mockDb.contractTypes.find(c => c.id === e.contract_type_id)?.code === 'destajo';
+    mockDb.payrollDetails.push({ 
+      id: mockDb['nextId']('payroll_details'), payroll_period_id: periodId, employee_id: e.id, 
+      days_worked: 0, hours_worked: 0, base_salary_snapshot: e.base_salary, deductions: 0, 
+      total_to_pay: manual ? 0 : Number(((e.base_salary / 2) * qCount).toFixed(2)), 
+      notes: manual ? 'Contrato por producción/destajo: requiere cálculo manual.' : notesStr 
+    });
+  });
+  return periodId;
 }
 export async function markPayrollPeriodPaid(periodId: number): Promise<boolean> {
   const pool = await getDbPool();
   if (pool) { const [result]: any = await pool.query('UPDATE payroll_periods SET status_id=3, closed_at=NOW() WHERE id=? AND status_id IN (1,2)', [periodId]); return result.affectedRows > 0; }
   const period=mockDb.payrollPeriods.find(p=>p.id===periodId); if(!period) return false; period.status_id=3; period.closed_at=new Date().toISOString(); return true;
+}
+
+export async function updateDestajoHours(detailId: number, hours: number): Promise<boolean> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [rows]: any = await pool.query('SELECT base_salary_snapshot FROM payroll_details WHERE id=?', [detailId]);
+    if (!rows.length) return false;
+    const baseSalary = Number(rows[0].base_salary_snapshot);
+    const hourlyRate = baseSalary / 240;
+    const totalToPay = Number((hourlyRate * hours).toFixed(2));
+    const notes = `Pago manual por ${hours} horas a $${hourlyRate.toFixed(2)}/h`;
+    
+    const [result]: any = await pool.query(
+      'UPDATE payroll_details SET hours_worked=?, total_to_pay=?, notes=? WHERE id=?',
+      [hours, totalToPay, notes, detailId]
+    );
+    return result.affectedRows > 0;
+  }
+  
+  const detail = mockDb.payrollDetails.find(d => d.id === detailId);
+  if (!detail) return false;
+  const baseSalary = Number(detail.base_salary_snapshot);
+  const hourlyRate = baseSalary / 240;
+  const totalToPay = Number((hourlyRate * hours).toFixed(2));
+  detail.hours_worked = hours;
+  detail.total_to_pay = totalToPay;
+  detail.notes = `Pago manual por ${hours} horas a $${hourlyRate.toFixed(2)}/h`;
+  return true;
 }

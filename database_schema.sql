@@ -592,6 +592,15 @@ CREATE TABLE IF NOT EXISTS payroll_periods (
     CONSTRAINT fk_payroll_period_status FOREIGN KEY (status_id) REFERENCES payroll_period_status (id) ON DELETE RESTRICT,
     UNIQUE KEY uq_payroll_period_dates (start_date, end_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS payroll_period_quincenas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    payroll_period_id INT NOT NULL,
+    year INT NOT NULL,
+    month INT NOT NULL,
+    quincena_number INT NOT NULL,
+    FOREIGN KEY (payroll_period_id) REFERENCES payroll_periods(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_quincena_paid (year, month, quincena_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 -- Snapshot por empleado: no cambia si el salario cambia posteriormente.
 CREATE TABLE IF NOT EXISTS payroll_details (
     id INT AUTO_INCREMENT PRIMARY KEY, payroll_period_id INT NOT NULL, employee_id INT NOT NULL,
@@ -662,12 +671,4 @@ ON DUPLICATE KEY UPDATE check_in=VALUES(check_in), check_out=VALUES(check_out), 
 -- Catálogo y seeds de nómina. Usa empleados 1–4 y asistencia existente de días -2/-1.
 INSERT INTO payroll_period_status (id, code, name) VALUES
 (1, 'abierto', 'Abierto'), (2, 'calculado', 'Calculado'), (3, 'pagado', 'Pagado')
-ON DUPLICATE KEY UPDATE code=VALUES(code), name=VALUES(name);
-INSERT INTO payroll_periods (id, start_date, end_date, status_id, closed_at) VALUES
-(1, DATE_SUB(CURDATE(), INTERVAL 2 DAY), DATE_SUB(CURDATE(), INTERVAL 1 DAY), 3, NOW()),
-(2, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 14 DAY), 1, NULL)
-ON DUPLICATE KEY UPDATE status_id=VALUES(status_id), closed_at=VALUES(closed_at);
-INSERT INTO payroll_details (payroll_period_id, employee_id, days_worked, hours_worked, base_salary_snapshot, deductions, total_to_pay, notes) VALUES
-(1, 1, 2.00, 17.08, 600.00, 0.00, 40.00, NULL), (1, 2, 2.00, 15.92, 450.00, 0.00, 30.00, NULL),
-(1, 3, 1.00, 7.67, 450.00, 0.00, 15.00, NULL), (1, 4, 0.00, 0.00, 380.00, 0.00, 0.00, 'Contrato por producción/destajo: requiere cálculo manual.')
-ON DUPLICATE KEY UPDATE days_worked=VALUES(days_worked), hours_worked=VALUES(hours_worked), base_salary_snapshot=VALUES(base_salary_snapshot), deductions=VALUES(deductions), total_to_pay=VALUES(total_to_pay), notes=VALUES(notes);
+ON DUPLICATE KEY UPDATE code=VALUES(code), name=VALUES(name);
