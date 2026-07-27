@@ -1,5 +1,7 @@
 import { createPool, Pool } from 'mysql2/promise';
 
+export const IVA_RATE = 0.13;
+
 // Define DB Types
 export interface Role {
   id: number;
@@ -829,7 +831,7 @@ class MockDatabase {
     if (!order) return;
 
     const items = this.orderItems.filter((oi) => oi.order_id === orderId);
-    order.total_price = items.reduce((sum, item) => sum + Number(item.subtotal), 0);
+    order.total_price = items.reduce((sum, item) => sum + Number(item.subtotal), 0) * (1 + IVA_RATE);
   }
 
   // Trigger capacity checks

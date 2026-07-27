@@ -1,4 +1,4 @@
-import { MySqlCustomError } from './db';
+import { MySqlCustomError, IVA_RATE } from './db';
 
 /**
  * REGLA GENERAL DE DISEÑO HISTÓRICO / CONGELACIÓN DE DATOS:
@@ -249,7 +249,7 @@ export async function recalcOrderTotal(conn: any, orderId: number): Promise<void
     `SELECT COALESCE(SUM(subtotal), 0) as total FROM order_items WHERE order_id = ?`,
     [orderId]
   );
-  const totalPrice = Number(sumRows[0].total);
+  const totalPrice = Number(sumRows[0].total) * (1 + IVA_RATE);
 
   await conn.query(
     `UPDATE orders SET total_price = ? WHERE id = ?`,
@@ -336,7 +336,8 @@ export async function validateDiscountAuthorization(
   const totalPrice = Number(orderRows[0].total_price);
 
   if (totalPrice > 0) {
-    const discountPercentage = (discount / totalPrice) * 100;
+    const netPrice = totalPrice / (1 + IVA_RATE);
+    const discountPercentage = (discount / netPrice) * 100;
     if (discountPercentage > 15 && userRole !== 'admin') {
       throw new MySqlCustomError(
         '45010',

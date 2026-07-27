@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { getDbPool, mockDb, MySqlCustomError, User, Product, ProductAttribute, ProductSize, Order, OrderItem, ProductionTask, WorkCalendar, Size, ProductAttributeValue, getProductionSchedule, ReworkEvent, ContractType, AttendanceStatus, Employee, Attendance, PayrollPeriod, PayrollDetail, PayrollPeriodStatus } from './db';
+import { getDbPool, mockDb, MySqlCustomError, IVA_RATE, User, Product, ProductAttribute, ProductSize, Order, OrderItem, ProductionTask, WorkCalendar, Size, ProductAttributeValue, getProductionSchedule, ReworkEvent, ContractType, AttendanceStatus, Employee, Attendance, PayrollPeriod, PayrollDetail, PayrollPeriodStatus } from './db';
 import {
   snapshotOrderItemSize,
   snapshotOrderItemAttribute,
@@ -1699,15 +1699,17 @@ export async function createInvoice(
 
       // Perform validation and locking inside transaction
       subtotal = await validateDiscountAuthorization(conn, orderId, discount, userRole);
+      // total_price now includes IVA; extract net amount for invoice calculations
+      const netSubtotal = subtotal / (1 + IVA_RATE);
       
       let ventasNoSujetas = 0, ventasExentas = 0, ventasGravadas = 0;
       let ivaRetenido = 0, ivaPercibido = 0, retencionRenta = 0;
 
       if (invoiceType === 'credito_fiscal') {
-        ventasGravadas = subtotal - discount;
-        finalTax = ventasGravadas * 0.13;
+        ventasGravadas = netSubtotal - discount;
+        finalTax = ventasGravadas * IVA_RATE;
       }
-      total = subtotal + finalTax - discount;
+      total = netSubtotal + finalTax - discount;
 
       const [res]: any = await conn.query(
         `INSERT INTO invoices (
@@ -1720,7 +1722,7 @@ export async function createInvoice(
           clientInfo.full_name || orderRows[0].client_name, clientInfo.nit || null, clientInfo.nrc || null, 
           clientInfo.actividad_economica || null, clientInfo.direccion || null, clientInfo.telefono || null, 
           clientInfo.email || null, clientInfo.nombre_comercial || null,
-          subtotal, finalTax, ventasNoSujetas, ventasExentas, ventasGravadas, ivaRetenido, ivaPercibido, retencionRenta, discount, total, invoiceType
+          netSubtotal, finalTax, ventasNoSujetas, ventasExentas, ventasGravadas, ivaRetenido, ivaPercibido, retencionRenta, discount, total, invoiceType
         ]
       );
       invoiceId = res.insertId;
@@ -1754,7 +1756,9 @@ export async function createInvoice(
     invoiceNumber = `FAC-${String(nextNum).padStart(5, '0')}-${year}`;
 
     subtotal = order.total_price;
-    const discountPercentage = (discount / subtotal) * 100;
+    // total_price now includes IVA; extract net amount for invoice calculations
+    const netSubtotal = subtotal / (1 + IVA_RATE);
+    const discountPercentage = (discount / netSubtotal) * 100;
     if (discountPercentage > 15 && userRole !== 'admin') {
       throw new MySqlCustomError(
         '45010',
@@ -1767,10 +1771,10 @@ export async function createInvoice(
     let ivaRetenido = 0, ivaPercibido = 0, retencionRenta = 0;
 
     if (invoiceType === 'credito_fiscal') {
-      ventasGravadas = subtotal - discount;
-      finalTax = ventasGravadas * 0.13;
+      ventasGravadas = netSubtotal - discount;
+      finalTax = ventasGravadas * IVA_RATE;
     }
-    total = subtotal + finalTax - discount;
+    total = netSubtotal + finalTax - discount;
 
     invoiceId = mockDb.invoices.length + 1;
     mockDb.invoices.push({
@@ -1789,7 +1793,7 @@ export async function createInvoice(
       receptor_telefono: clientInfo.telefono || null,
       receptor_correo: clientInfo.email || null,
       receptor_nombre_comercial: clientInfo.nombre_comercial || null,
-      subtotal,
+      subtotal: netSubtotal,
       tax: finalTax,
       ventas_no_sujetas: ventasNoSujetas,
       ventas_exentas: ventasExentas,

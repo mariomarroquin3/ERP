@@ -245,7 +245,8 @@ export default function OrderDetailsTimeline({ order, token, role, onRefreshNeed
     const tax = parseFloat(invoiceTax) || 0;
 
     // Check discount role restrictions (max 15% for non-admin)
-    const discountPercentage = (discount / parseFloat(localOrder.total_price as any)) * 100;
+    const netPrice = parseFloat(localOrder.total_price as any) / 1.13;
+    const discountPercentage = (discount / netPrice) * 100;
     if (discountPercentage > 15 && activeRole !== 'admin') {
       setErrorMessage(`El descuento del ${discountPercentage.toFixed(1)}% supera el límite permitido del 15% para su rol. Requiere aprobación de Administrador.`);
       return;
