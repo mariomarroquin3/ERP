@@ -1680,7 +1680,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     required
                     value={newFullName}
                     onChange={(e) => setNewFullName(e.target.value)}
-                    placeholder="Ej: Mario Marroquín"
+                    placeholder="Ej: Juan Pérez"
                     className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
                   />
                 </div>
@@ -1692,7 +1692,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     required
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
-                    placeholder="Ej: mario@example.com"
+                    placeholder="Ej: mail@example.com"
                     className="block w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-slate-950 text-xs font-semibold shadow-xs dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
                   />
                 </div>

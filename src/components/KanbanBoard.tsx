@@ -396,16 +396,16 @@ export default function KanbanBoard({ token, user }: KanbanBoardProps) {
 
   // Stage Categories
   const stages = [
-    { id: 1, name: 'Corte', color: 'border-t-sky-500 text-sky-700 bg-sky-50/20' },
-    { id: 2, name: 'Estampado', color: 'border-t-orange-500 text-orange-700 bg-orange-50/20' },
-    { id: 3, name: 'Confeccionado', color: 'border-t-purple-500 text-purple-700 bg-purple-50/20' },
-    { id: 4, name: 'Acabado', color: 'border-t-indigo-500 text-indigo-700 bg-indigo-50/20' },
-    { id: 5, name: 'Revisado', color: 'border-t-amber-500 text-amber-700 bg-amber-50/20' },
-    { id: 6, name: 'Bordado', color: 'border-t-pink-500 text-pink-700 bg-pink-50/20' },
-    { id: 7, name: 'Planchado', color: 'border-t-rose-500 text-rose-700 bg-rose-50/20' },
-    { id: 8, name: 'Empaquetado', color: 'border-t-teal-500 text-teal-700 bg-teal-50/20' },
-    { id: 9, name: 'Recibido en Tienda', color: 'border-t-blue-500 text-blue-700 bg-blue-50/20' },
-    { id: 10, name: 'Despachado', color: 'border-t-emerald-500 text-emerald-700 bg-emerald-50/20' }
+    { id: 1, name: 'Corte', color: 'border-t-sky-500 text-sky-700 bg-sky-50/20 dark:text-sky-300 dark:bg-sky-950/40' },
+    { id: 2, name: 'Estampado', color: 'border-t-orange-500 text-orange-700 bg-orange-50/20 dark:text-orange-300 dark:bg-orange-950/40' },
+    { id: 3, name: 'Confeccionado', color: 'border-t-purple-500 text-purple-700 bg-purple-50/20 dark:text-purple-300 dark:bg-purple-950/40' },
+    { id: 4, name: 'Acabado', color: 'border-t-indigo-500 text-indigo-700 bg-indigo-50/20 dark:text-indigo-300 dark:bg-indigo-950/40' },
+    { id: 5, name: 'Revisado', color: 'border-t-amber-500 text-amber-700 bg-amber-50/20 dark:text-amber-300 dark:bg-amber-950/40' },
+    { id: 6, name: 'Bordado', color: 'border-t-pink-500 text-pink-700 bg-pink-50/20 dark:text-pink-300 dark:bg-pink-950/40' },
+    { id: 7, name: 'Planchado', color: 'border-t-rose-500 text-rose-700 bg-rose-50/20 dark:text-rose-300 dark:bg-rose-950/40' },
+    { id: 8, name: 'Empaquetado', color: 'border-t-teal-500 text-teal-700 bg-teal-50/20 dark:text-teal-300 dark:bg-teal-950/40' },
+    { id: 9, name: 'Recibido en Tienda', color: 'border-t-blue-500 text-blue-700 bg-blue-50/20 dark:text-blue-300 dark:bg-blue-950/40' },
+    { id: 10, name: 'Despachado', color: 'border-t-emerald-500 text-emerald-700 bg-emerald-50/20 dark:text-emerald-300 dark:bg-emerald-950/40' }
   ];
 
   const getStatusLabel = (statusId: number) => {

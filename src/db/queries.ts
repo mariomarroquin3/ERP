@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { getDbPool, mockDb, MySqlCustomError, User, Product, ProductAttribute, ProductSize, Order, OrderItem, ProductionTask, WorkCalendar, Size, ProductAttributeValue, getProductionSchedule, ReworkEvent } from './db';
+import { getDbPool, mockDb, MySqlCustomError, IVA_RATE, User, Product, ProductAttribute, ProductSize, Order, OrderItem, ProductionTask, WorkCalendar, Size, ProductAttributeValue, getProductionSchedule, ReworkEvent, ContractType, AttendanceStatus, Employee, Attendance, PayrollPeriod, PayrollDetail, PayrollPeriodStatus } from './db';
 import {
   snapshotOrderItemSize,
   snapshotOrderItemAttribute,
@@ -136,10 +136,10 @@ export async function resetPassword(email: string, newPasswordHash: string): Pro
 export async function getProducts(): Promise<Product[]> {
   const pool = await getDbPool();
   if (pool) {
-    const [rows]: any = await pool.query('SELECT * FROM products WHERE active = TRUE');
+    const [rows]: any = await pool.query('SELECT p.*, pt.name AS product_type_name FROM products p JOIN product_types pt ON pt.id = p.product_type_id WHERE p.active = TRUE');
     return rows;
   } else {
-    return mockDb.products.filter((p) => p.active);
+    return mockDb.products.filter((p) => p.active).map((p) => ({ ...p, product_type_name: mockDb.productTypes.find((pt) => pt.id === p.product_type_id)?.name }));
   }
 }
 
@@ -183,30 +183,30 @@ export async function getProductAttributes(productId: number): Promise<ProductAt
 export async function getProductSizes(productId: number): Promise<ProductSize[]> {
   const pool = await getDbPool();
   if (pool) {
-    const [rows]: any = await pool.query(
-      `SELECT ps.*, s.code as size_code, s.name as size_name, s.gender as size_gender 
-       FROM product_sizes ps 
-       JOIN sizes s ON ps.size_id = s.id 
-       WHERE ps.product_id = ? AND ps.active = TRUE
-       ORDER BY s.sort_order`,
-      [productId]
-    );
+    // Migration-safe category: shirt sizes and numeric pant sizes coexist in one catalog.
+    await pool.query("ALTER TABLE sizes ADD COLUMN apparel_category VARCHAR(50) NOT NULL DEFAULT 'camisa'").catch(() => undefined);
+    await pool.query("UPDATE sizes SET apparel_category = CASE WHEN code LIKE 'P-%' THEN 'pantalon' ELSE 'camisa' END WHERE id > 0");
+    const [productRows]: any = await pool.query('SELECT pt.name FROM products p JOIN product_types pt ON pt.id = p.product_type_id WHERE p.id = ?', [productId]);
+    const isPants = /pantal[oó]n|jeans?|inferior/i.test(productRows[0]?.name || '');
+    const category = isPants ? 'pantalon' : 'camisa';
+    // Makes newly catalogued sizes available to products of the matching garment class.
+    await pool.query(`INSERT IGNORE INTO product_sizes (product_id, size_id, price_modifier, active)
+      SELECT ?, id, 0.00, TRUE FROM sizes WHERE apparel_category = ?`, [productId, category]);
+    const [rows]: any = await pool.query(`SELECT ps.*, s.code AS size_code, s.name AS size_name, s.gender AS size_gender, s.apparel_category
+      FROM product_sizes ps JOIN sizes s ON ps.size_id = s.id
+      WHERE ps.product_id = ? AND ps.active = TRUE AND s.apparel_category = ? ORDER BY s.sort_order`, [productId, category]);
     return rows;
-  } else {
-    return mockDb.productSizes
-      .filter((ps) => ps.product_id === productId && ps.active)
-      .map((ps) => {
-        const sz = mockDb.sizes.find((s) => s.id === ps.size_id);
-        return {
-          ...ps,
-          size_code: sz?.code || '',
-          size_name: sz?.name || '',
-          size_gender: sz?.gender || '',
-        };
-      });
   }
+  const product = mockDb.products.find((item) => item.id === productId);
+  const isPants = product?.product_type_id === 3;
+  return mockDb.productSizes.filter((ps) => {
+    const size = mockDb.sizes.find((s) => s.id === ps.size_id);
+    return ps.product_id === productId && ps.active && (isPants ? size?.code.startsWith('P-') : !size?.code.startsWith('P-'));
+  }).map((ps) => {
+    const size = mockDb.sizes.find((s) => s.id === ps.size_id);
+    return { ...ps, size_code: size?.code || '', size_name: size?.name || '', size_gender: size?.gender || '', apparel_category: size?.code.startsWith('P-') ? 'pantalon' : 'camisa' };
+  });
 }
-
 // 3. Orders Queries
 export async function getOrders(clientId?: number): Promise<Order[]> {
   const pool = await getDbPool();
@@ -1119,6 +1119,16 @@ export async function getCatalogSizes(): Promise<Size[]> {
         await pool.query("UPDATE sizes SET gender = 'hombre' WHERE code IN ('XS', 'S', 'M', 'L', 'XL', 'XXL')");
       });
 
+      // Ensure the numeric scales for lower garments exist even on databases created before this module.
+      await pool.query("ALTER TABLE sizes ADD COLUMN apparel_category VARCHAR(50) NOT NULL DEFAULT 'camisa'").catch(() => undefined);
+      const pants = [
+        ...[4, 6, 8, 12, 28, 30, 32, 34, 36, 38, 40, 42].map((n, i) => ({ code: `P-H-${n}`, name: `${n} Hombre`, sort: 101 + i, gender: 'hombre' })),
+        ...[6, 8, 10, 12, 14, 16, 18, 20].map((n, i) => ({ code: `P-M-${n}`, name: `${n} Mujer`, sort: 121 + i, gender: 'mujer' })),
+      ];
+      for (const size of pants) {
+        await pool.query(`INSERT INTO sizes (code, name, sort_order, gender, apparel_category) VALUES (?, ?, ?, ?, 'pantalon')
+          ON DUPLICATE KEY UPDATE name=VALUES(name), sort_order=VALUES(sort_order), gender=VALUES(gender), apparel_category='pantalon'`, [size.code, size.name, size.sort, size.gender]);
+      }
       // Check if both genders are represented (specifically 'mujer')
       const [genderCheck]: any = await pool.query("SELECT COUNT(*) as count FROM sizes WHERE gender = 'mujer'");
       const hasMujerSizes = genderCheck && genderCheck[0] && genderCheck[0].count > 0;
@@ -1689,15 +1699,17 @@ export async function createInvoice(
 
       // Perform validation and locking inside transaction
       subtotal = await validateDiscountAuthorization(conn, orderId, discount, userRole);
+      // total_price now includes IVA; extract net amount for invoice calculations
+      const netSubtotal = subtotal / (1 + IVA_RATE);
       
       let ventasNoSujetas = 0, ventasExentas = 0, ventasGravadas = 0;
       let ivaRetenido = 0, ivaPercibido = 0, retencionRenta = 0;
 
       if (invoiceType === 'credito_fiscal') {
-        ventasGravadas = subtotal - discount;
-        finalTax = ventasGravadas * 0.13;
+        ventasGravadas = netSubtotal - discount;
+        finalTax = ventasGravadas * IVA_RATE;
       }
-      total = subtotal + finalTax - discount;
+      total = netSubtotal + finalTax - discount;
 
       const [res]: any = await conn.query(
         `INSERT INTO invoices (
@@ -1710,7 +1722,7 @@ export async function createInvoice(
           clientInfo.full_name || orderRows[0].client_name, clientInfo.nit || null, clientInfo.nrc || null, 
           clientInfo.actividad_economica || null, clientInfo.direccion || null, clientInfo.telefono || null, 
           clientInfo.email || null, clientInfo.nombre_comercial || null,
-          subtotal, finalTax, ventasNoSujetas, ventasExentas, ventasGravadas, ivaRetenido, ivaPercibido, retencionRenta, discount, total, invoiceType
+          netSubtotal, finalTax, ventasNoSujetas, ventasExentas, ventasGravadas, ivaRetenido, ivaPercibido, retencionRenta, discount, total, invoiceType
         ]
       );
       invoiceId = res.insertId;
@@ -1744,7 +1756,9 @@ export async function createInvoice(
     invoiceNumber = `FAC-${String(nextNum).padStart(5, '0')}-${year}`;
 
     subtotal = order.total_price;
-    const discountPercentage = (discount / subtotal) * 100;
+    // total_price now includes IVA; extract net amount for invoice calculations
+    const netSubtotal = subtotal / (1 + IVA_RATE);
+    const discountPercentage = (discount / netSubtotal) * 100;
     if (discountPercentage > 15 && userRole !== 'admin') {
       throw new MySqlCustomError(
         '45010',
@@ -1757,10 +1771,10 @@ export async function createInvoice(
     let ivaRetenido = 0, ivaPercibido = 0, retencionRenta = 0;
 
     if (invoiceType === 'credito_fiscal') {
-      ventasGravadas = subtotal - discount;
-      finalTax = ventasGravadas * 0.13;
+      ventasGravadas = netSubtotal - discount;
+      finalTax = ventasGravadas * IVA_RATE;
     }
-    total = subtotal + finalTax - discount;
+    total = netSubtotal + finalTax - discount;
 
     invoiceId = mockDb.invoices.length + 1;
     mockDb.invoices.push({
@@ -1779,7 +1793,7 @@ export async function createInvoice(
       receptor_telefono: clientInfo.telefono || null,
       receptor_correo: clientInfo.email || null,
       receptor_nombre_comercial: clientInfo.nombre_comercial || null,
-      subtotal,
+      subtotal: netSubtotal,
       tax: finalTax,
       ventas_no_sujetas: ventasNoSujetas,
       ventas_exentas: ventasExentas,
@@ -2432,22 +2446,22 @@ export async function getRolePermissions(): Promise<any[]> {
   const pool = await getDbPool();
   if (pool) {
     try {
-      // Ensure seed permissions exist in MySQL as well
-      const [rows]: any = await pool.query('SELECT * FROM role_permissions');
-      if (rows.length === 0) {
-        // Seed default permissions
-        const defaultPerms = [
-          [1, 'dashboard', 1], [1, 'calendar', 1], [1, 'create_order', 1], [1, 'kanban', 1], [1, 'admin_panel', 1], [1, 'my_orders', 0],
-          [2, 'dashboard', 1], [2, 'calendar', 1], [2, 'create_order', 1], [2, 'kanban', 0], [2, 'admin_panel', 0], [2, 'my_orders', 0],
-          [3, 'dashboard', 0], [3, 'calendar', 0], [3, 'create_order', 0], [3, 'kanban', 1], [3, 'admin_panel', 0], [3, 'my_orders', 0],
-          [4, 'dashboard', 0], [4, 'calendar', 0], [4, 'create_order', 0], [4, 'kanban', 0], [4, 'admin_panel', 0], [4, 'my_orders', 1]
-        ];
-        for (const perm of defaultPerms) {
-          await pool.query('INSERT IGNORE INTO role_permissions (role_id, permission_key, is_enabled) VALUES (?, ?, ?)', perm);
-        }
-        const [seededRows]: any = await pool.query('SELECT * FROM role_permissions');
-        return seededRows;
+      const defaultPerms = [
+        [1, 'dashboard', 1], [1, 'calendar', 1], [1, 'create_order', 1], [1, 'kanban', 1], [1, 'admin_panel', 1], [1, 'my_orders', 0],
+        [1, 'employees.manage', 1], [1, 'attendance.view', 1], [1, 'attendance.register', 1],
+        [2, 'dashboard', 1], [2, 'calendar', 1], [2, 'create_order', 1], [2, 'kanban', 0], [2, 'admin_panel', 0], [2, 'my_orders', 0],
+        [2, 'employees.manage', 0], [2, 'attendance.view', 0], [2, 'attendance.register', 0],
+        [3, 'dashboard', 0], [3, 'calendar', 0], [3, 'create_order', 0], [3, 'kanban', 1], [3, 'admin_panel', 0], [3, 'my_orders', 0],
+        [3, 'employees.manage', 0], [3, 'attendance.view', 1], [3, 'attendance.register', 1],
+        [4, 'dashboard', 0], [4, 'calendar', 0], [4, 'create_order', 0], [4, 'kanban', 0], [4, 'admin_panel', 0], [4, 'my_orders', 1],
+        [4, 'employees.manage', 0], [4, 'attendance.view', 0], [4, 'attendance.register', 0],
+        [5, 'dashboard', 0], [5, 'calendar', 0], [5, 'create_order', 0], [5, 'kanban', 1], [5, 'admin_panel', 0], [5, 'my_orders', 0],
+        [5, 'employees.manage', 0], [5, 'attendance.view', 1], [5, 'attendance.register', 1]
+      ];
+      for (const perm of defaultPerms) {
+        await pool.query('INSERT IGNORE INTO role_permissions (role_id, permission_key, is_enabled) VALUES (?, ?, ?)', perm);
       }
+      const [rows]: any = await pool.query('SELECT * FROM role_permissions');
       return rows;
     } catch (err) {
       console.error('Failed to query role_permissions:', err);
@@ -2691,4 +2705,379 @@ export async function extendWorkCalendar(daysAhead: number): Promise<void> {
 }
 
 
+// ==========================================================
+// EMPLOYEES MODULE
+// ==========================================================
 
+export async function getEmployees(): Promise<(Employee & { contract_type_name: string; contract_type_code: string })[]> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [rows]: any = await pool.query(`
+      SELECT e.*, ct.name AS contract_type_name, ct.code AS contract_type_code
+      FROM employees e
+      JOIN contract_types ct ON e.contract_type_id = ct.id
+      ORDER BY e.full_name ASC
+    `);
+    return rows.map((r: any) => ({ ...r, is_active: !!r.is_active }));
+  } else {
+    return mockDb.employees.map((e) => {
+      const ct = mockDb.contractTypes.find((c) => c.id === e.contract_type_id);
+      return {
+        ...e,
+        contract_type_name: ct?.name ?? '',
+        contract_type_code: ct?.code ?? '',
+      };
+    });
+  }
+}
+
+export async function getEmployeeById(id: number): Promise<(Employee & { contract_type_name: string; contract_type_code: string }) | null> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [rows]: any = await pool.query(`
+      SELECT e.*, ct.name AS contract_type_name, ct.code AS contract_type_code
+      FROM employees e
+      JOIN contract_types ct ON e.contract_type_id = ct.id
+      WHERE e.id = ?
+    `, [id]);
+    if (rows.length === 0) return null;
+    return { ...rows[0], is_active: !!rows[0].is_active };
+  } else {
+    const e = mockDb.employees.find((emp) => emp.id === id);
+    if (!e) return null;
+    const ct = mockDb.contractTypes.find((c) => c.id === e.contract_type_id);
+    return {
+      ...e,
+      contract_type_name: ct?.name ?? '',
+      contract_type_code: ct?.code ?? '',
+    };
+  }
+}
+
+export async function createEmployee(employee: Omit<Employee, 'id' | 'created_at' | 'updated_at'>): Promise<number> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [result]: any = await pool.query(
+      `INSERT INTO employees (full_name, position, hire_date, contract_type_id, base_salary, is_active, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [employee.full_name, employee.position, employee.hire_date, employee.contract_type_id, employee.base_salary, employee.is_active ? 1 : 0, employee.user_id]
+    );
+    return result.insertId;
+  } else {
+    const newId = mockDb['nextId']('employees');
+    const now = new Date().toISOString();
+    mockDb.employees.push({
+      ...employee,
+      id: newId,
+      created_at: now,
+      updated_at: now,
+    });
+    return newId;
+  }
+}
+
+export async function updateEmployee(id: number, updates: Partial<Omit<Employee, 'id' | 'created_at' | 'updated_at'>>): Promise<boolean> {
+  const pool = await getDbPool();
+  if (pool) {
+    const fields = Object.keys(updates);
+    if (fields.length === 0) return false;
+    const setClauses = fields.map((f) => `${f} = ?`).join(', ');
+    const values = fields.map((f) => (updates as any)[f]);
+    await pool.query(`UPDATE employees SET ${setClauses}, updated_at = NOW() WHERE id = ?`, [...values, id]);
+    return true;
+  } else {
+    const emp = mockDb.employees.find((e) => e.id === id);
+    if (!emp) return false;
+    Object.assign(emp, updates, { updated_at: new Date().toISOString() });
+    return true;
+  }
+}
+
+export async function updateEmployeeStatus(id: number, isActive: boolean): Promise<boolean> {
+  return updateEmployee(id, { is_active: isActive });
+}
+
+// ==========================================================
+// ATTENDANCE MODULE
+// ==========================================================
+
+export async function getAttendance(
+  startDate: string,
+  endDate: string,
+  employeeId?: number
+): Promise<(Attendance & { employee_name: string; status_name: string; status_code: string; stage_name: string | null })[]> {
+  const pool = await getDbPool();
+  if (pool) {
+    let sql = `
+      SELECT a.*,
+             e.full_name AS employee_name,
+             ast.name AS status_name,
+             ast.code AS status_code,
+             ps.name AS stage_name
+      FROM attendance a
+      JOIN employees e ON a.employee_id = e.id
+      JOIN attendance_status ast ON a.attendance_status_id = ast.id
+      LEFT JOIN production_stages ps ON a.stage_id = ps.id
+      WHERE a.work_date BETWEEN ? AND ?
+    `;
+    const params: any[] = [startDate, endDate];
+    if (employeeId) {
+      sql += ' AND a.employee_id = ?';
+      params.push(employeeId);
+    }
+    sql += ' ORDER BY a.work_date DESC, e.full_name ASC';
+    const [rows]: any = await pool.query(sql, params);
+    return rows;
+  } else {
+    let records = mockDb.attendance.filter(
+      (a) => a.work_date >= startDate && a.work_date <= endDate
+    );
+    if (employeeId) {
+      records = records.filter((a) => a.employee_id === employeeId);
+    }
+    records = [...records].sort((a, b) => b.work_date.localeCompare(a.work_date));
+    return records.map((a) => {
+      const emp = mockDb.employees.find((e) => e.id === a.employee_id);
+      const status = mockDb.attendanceStatuses.find((s) => s.id === a.attendance_status_id);
+      const stage = mockDb.productionStages.find((ps) => ps.id === a.stage_id);
+      return {
+        ...a,
+        employee_name: emp?.full_name ?? '',
+        status_name: status?.name ?? '',
+        status_code: status?.code ?? '',
+        stage_name: stage?.name ?? null,
+      };
+    });
+  }
+}
+
+export async function registerAttendanceCheckIn(
+  employeeId: number,
+  workDate: string,
+  checkInTime: string,
+  statusId: number,
+  stageId?: number
+): Promise<number> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [result]: any = await pool.query(`
+      INSERT INTO attendance (employee_id, work_date, check_in, attendance_status_id, stage_id)
+      VALUES (?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE check_in = VALUES(check_in), attendance_status_id = VALUES(attendance_status_id), stage_id = VALUES(stage_id)
+    `, [employeeId, workDate, checkInTime, statusId, stageId ?? null]);
+    return result.insertId || result.affectedRows;
+  } else {
+    const existing = mockDb.attendance.find(
+      (a) => a.employee_id === employeeId && a.work_date === workDate
+    );
+    if (existing) {
+      existing.check_in = checkInTime;
+      existing.attendance_status_id = statusId;
+      existing.stage_id = stageId ?? null;
+      return existing.id;
+    } else {
+      const newId = mockDb['nextId']('attendance');
+      mockDb.attendance.push({
+        id: newId,
+        employee_id: employeeId,
+        work_date: workDate,
+        check_in: checkInTime,
+        check_out: null,
+        attendance_status_id: statusId,
+        stage_id: stageId ?? null,
+      });
+      return newId;
+    }
+  }
+}
+
+export async function registerAttendanceCheckOut(
+  employeeId: number,
+  workDate: string,
+  checkOutTime: string
+): Promise<boolean> {
+  const pool = await getDbPool();
+  if (pool) {
+    await pool.query(
+      `UPDATE attendance SET check_out = ? WHERE employee_id = ? AND work_date = ?`,
+      [checkOutTime, employeeId, workDate]
+    );
+    return true;
+  } else {
+    const existing = mockDb.attendance.find(
+      (a) => a.employee_id === employeeId && a.work_date === workDate
+    );
+    if (!existing) return false;
+    existing.check_out = checkOutTime;
+    return true;
+  }
+}
+
+// ==========================================================
+// CATALOG QUERIES
+// ==========================================================
+
+export async function getContractTypes(): Promise<ContractType[]> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [rows]: any = await pool.query('SELECT * FROM contract_types ORDER BY id ASC');
+    return rows;
+  } else {
+    return [...mockDb.contractTypes];
+  }
+}
+
+export async function getAttendanceStatuses(): Promise<AttendanceStatus[]> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [rows]: any = await pool.query('SELECT * FROM attendance_status ORDER BY id ASC');
+    return rows;
+  } else {
+    return [...mockDb.attendanceStatuses];
+  }
+}
+
+
+// ==========================================================
+// PAYROLL MODULE — calculations are application-layer snapshots
+// ==========================================================
+export async function getPayrollPeriodStatuses(): Promise<PayrollPeriodStatus[]> {
+  const pool = await getDbPool();
+  if (pool) { const [rows]: any = await pool.query('SELECT * FROM payroll_period_status ORDER BY id'); return rows; }
+  return [...mockDb.payrollPeriodStatuses];
+}
+export async function getPayrollPeriods(): Promise<PayrollPeriod[]> {
+  const pool = await getDbPool();
+  if (pool) { const [rows]: any = await pool.query(`SELECT p.*, s.code AS status_code, s.name AS status_name FROM payroll_periods p JOIN payroll_period_status s ON s.id=p.status_id ORDER BY p.start_date DESC`); return rows; }
+  return mockDb.payrollPeriods.map(p => ({ ...p, status_code: mockDb.payrollPeriodStatuses.find(s => s.id === p.status_id)?.code, status_name: mockDb.payrollPeriodStatuses.find(s => s.id === p.status_id)?.name }));
+}
+export async function getPayrollPeriodDetails(periodId: number): Promise<PayrollDetail[]> {
+  const pool = await getDbPool();
+  if (pool) { const [rows]: any = await pool.query(`SELECT d.*, e.full_name AS employee_name, e.position, ct.code AS contract_type_code FROM payroll_details d JOIN employees e ON e.id=d.employee_id JOIN contract_types ct ON ct.id=e.contract_type_id WHERE d.payroll_period_id=? ORDER BY e.full_name`, [periodId]); return rows; }
+  return mockDb.payrollDetails.filter(d => d.payroll_period_id === periodId).map(d => { const e=mockDb.employees.find(x=>x.id===d.employee_id); return {...d, employee_name:e?.full_name, position:e?.position, contract_type_code:mockDb.contractTypes.find(c=>c.id===e?.contract_type_id)?.code}; });
+}
+export async function generatePayrollPeriod(startDate: string, endDate: string): Promise<number> {
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T23:59:59');
+  const quincenas = [];
+  let current = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (current <= end) {
+    const y = current.getFullYear();
+    const m = current.getMonth() + 1;
+    const q1Start = new Date(y, m - 1, 1);
+    const q1End = new Date(y, m - 1, 15, 23, 59, 59);
+    const q2Start = new Date(y, m - 1, 16);
+    const q2End = new Date(y, m, 0, 23, 59, 59);
+    if (q1Start <= end && q1End >= start) quincenas.push({ year: y, month: m, number: 1 });
+    if (q2Start <= end && q2End >= start) quincenas.push({ year: y, month: m, number: 2 });
+    current = new Date(y, m, 1);
+  }
+  if (quincenas.length === 0) throw new Error('El rango seleccionado no cubre ninguna quincena válida.');
+
+  const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  const qList = quincenas.map(q => `Quincena ${q.number} (${monthNames[q.month - 1]})`);
+  const notesStr = qList.join(', ');
+  const qCount = quincenas.length;
+
+  const pool = await getDbPool();
+  if (pool) {
+    const connection: any = await (pool as any).getConnection();
+    try {
+      await connection.beginTransaction();
+      const [existing]: any = await connection.query('SELECT id FROM payroll_periods WHERE start_date=? AND end_date=? FOR UPDATE', [startDate, endDate]);
+      let periodId: number;
+      if (existing.length) { 
+        periodId = existing[0].id; 
+        await connection.query('DELETE FROM payroll_details WHERE payroll_period_id=?', [periodId]); 
+        await connection.query('DELETE FROM payroll_period_quincenas WHERE payroll_period_id=?', [periodId]);
+        await connection.query('UPDATE payroll_periods SET status_id=2, closed_at=NULL WHERE id=?', [periodId]); 
+      } else { 
+        const [result]: any = await connection.query('INSERT INTO payroll_periods (start_date,end_date,status_id) VALUES (?,?,2)', [startDate,endDate]); 
+        periodId = result.insertId; 
+      }
+
+      for (const q of quincenas) {
+        try {
+          await connection.query('INSERT INTO payroll_period_quincenas (payroll_period_id, year, month, quincena_number) VALUES (?, ?, ?, ?)', [periodId, q.year, q.month, q.number]);
+        } catch (err: any) {
+          if (err.code === 'ER_DUP_ENTRY') throw new Error(`La quincena ${q.number} del mes ${q.month}/${q.year} ya ha sido calculada en otro período.`);
+          throw err;
+        }
+      }
+
+      const [employees]: any = await connection.query(`SELECT e.*, ct.code AS contract_type_code FROM employees e JOIN contract_types ct ON ct.id=e.contract_type_id WHERE e.is_active=1`);
+      for (const e of employees) {
+        const manual = e.contract_type_code === 'destajo';
+        const total = manual ? 0 : Number(((Number(e.base_salary) / 2) * qCount).toFixed(2));
+        await connection.query('INSERT INTO payroll_details (payroll_period_id,employee_id,days_worked,hours_worked,base_salary_snapshot,deductions,total_to_pay,notes) VALUES (?,?,?,?,?,?,?,?)', [periodId, e.id, 0, 0, e.base_salary, 0, total, manual ? 'Contrato por producción/destajo: requiere cálculo manual.' : notesStr]);
+      }
+      await connection.commit(); return periodId;
+    } catch(error) { await connection.rollback(); throw error; } finally { connection.release(); }
+  }
+
+  // Sandbox mockDb fallback
+  if (!(mockDb as any).payrollPeriodQuincenas) (mockDb as any).payrollPeriodQuincenas = [];
+  const existingMock = mockDb.payrollPeriods.find(p => p.start_date === startDate && p.end_date === endDate);
+  const periodId = existingMock ? existingMock.id : mockDb['nextId']('payroll_periods');
+  
+  for (const q of quincenas) {
+    const dup = (mockDb as any).payrollPeriodQuincenas.find((pq: any) => pq.year === q.year && pq.month === q.month && pq.quincena_number === q.number && pq.payroll_period_id !== periodId);
+    if (dup) throw new Error(`La quincena ${q.number} del mes ${q.month}/${q.year} ya ha sido calculada en otro período.`);
+  }
+
+  if (existingMock) {
+    existingMock.status_id = 2;
+    existingMock.closed_at = null;
+    mockDb.payrollDetails = mockDb.payrollDetails.filter(d => d.payroll_period_id !== periodId);
+    (mockDb as any).payrollPeriodQuincenas = (mockDb as any).payrollPeriodQuincenas.filter((pq: any) => pq.payroll_period_id !== periodId);
+  } else {
+    mockDb.payrollPeriods.push({id: periodId, start_date: startDate, end_date: endDate, status_id: 2, closed_at: null});
+  }
+
+  for (const q of quincenas) {
+    (mockDb as any).payrollPeriodQuincenas.push({ id: Math.random(), payroll_period_id: periodId, year: q.year, month: q.month, quincena_number: q.number });
+  }
+
+  mockDb.employees.filter(e => e.is_active).forEach(e => {
+    const manual = mockDb.contractTypes.find(c => c.id === e.contract_type_id)?.code === 'destajo';
+    mockDb.payrollDetails.push({ 
+      id: mockDb['nextId']('payroll_details'), payroll_period_id: periodId, employee_id: e.id, 
+      days_worked: 0, hours_worked: 0, base_salary_snapshot: e.base_salary, deductions: 0, 
+      total_to_pay: manual ? 0 : Number(((e.base_salary / 2) * qCount).toFixed(2)), 
+      notes: manual ? 'Contrato por producción/destajo: requiere cálculo manual.' : notesStr 
+    });
+  });
+  return periodId;
+}
+export async function markPayrollPeriodPaid(periodId: number): Promise<boolean> {
+  const pool = await getDbPool();
+  if (pool) { const [result]: any = await pool.query('UPDATE payroll_periods SET status_id=3, closed_at=NOW() WHERE id=? AND status_id IN (1,2)', [periodId]); return result.affectedRows > 0; }
+  const period=mockDb.payrollPeriods.find(p=>p.id===periodId); if(!period) return false; period.status_id=3; period.closed_at=new Date().toISOString(); return true;
+}
+
+export async function updateDestajoHours(detailId: number, hours: number): Promise<boolean> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [rows]: any = await pool.query('SELECT base_salary_snapshot FROM payroll_details WHERE id=?', [detailId]);
+    if (!rows.length) return false;
+    const baseSalary = Number(rows[0].base_salary_snapshot);
+    const hourlyRate = baseSalary / 240;
+    const totalToPay = Number((hourlyRate * hours).toFixed(2));
+    const notes = `Pago manual por ${hours} horas a $${hourlyRate.toFixed(2)}/h`;
+    
+    const [result]: any = await pool.query(
+      'UPDATE payroll_details SET hours_worked=?, total_to_pay=?, notes=? WHERE id=?',
+      [hours, totalToPay, notes, detailId]
+    );
+    return result.affectedRows > 0;
+  }
+  
+  const detail = mockDb.payrollDetails.find(d => d.id === detailId);
+  if (!detail) return false;
+  const baseSalary = Number(detail.base_salary_snapshot);
+  const hourlyRate = baseSalary / 240;
+  const totalToPay = Number((hourlyRate * hours).toFixed(2));
+  detail.hours_worked = hours;
+  detail.total_to_pay = totalToPay;
+  detail.notes = `Pago manual por ${hours} horas a $${hourlyRate.toFixed(2)}/h`;
+  return true;
+}

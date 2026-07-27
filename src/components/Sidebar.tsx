@@ -10,7 +10,11 @@ import {
   Activity,
   Layers,
   Sun,
-  Moon
+  Moon,
+  ScanLine,
+  UsersRound,
+  ClipboardCheck,
+  Banknote
 } from 'lucide-react';
 import { User } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
@@ -73,7 +77,34 @@ export default function Sidebar({ user, activeTab, setActiveTab, onLogout }: Sid
       roles: ['admin', 'taller', 'operario'],
       permission: 'kanban'
     },
-    // Admin items
+    // Asistencia y personal
+    {
+      id: 'attendance-register',
+      label: 'Marcar Asistencia',
+      icon: ScanLine,
+      roles: ['admin', 'taller', 'operario'],
+      permission: 'attendance.register'
+    },
+    {
+      id: 'attendance-history',
+      label: 'Historial de Asistencia',
+      icon: ClipboardCheck,
+      roles: ['admin', 'taller', 'operario'],
+      permission: 'attendance.view'
+    },
+    {
+      id: 'employees',
+      label: 'Empleados',
+      icon: UsersRound,
+      roles: ['admin'],
+      permission: 'employees.manage'
+    },    {
+      id: 'payroll',
+      label: 'Nómina',
+      icon: Banknote,
+      roles: ['admin'],
+      permission: 'payroll.view'
+    },    // Admin items
     {
       id: 'admin-panel',
       label: 'Administración',
@@ -92,14 +123,14 @@ export default function Sidebar({ user, activeTab, setActiveTab, onLogout }: Sid
   ];
 
   const visibleItems = menuItems.filter((item) => {
-    if (user.permissions) {
+    if (user.permissions && user.permissions.length > 0) {
       return user.permissions.includes(item.permission);
     }
     return item.roles.includes(user.role);
   });
 
   return (
-    <div className="w-64 lg:w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 h-screen flex flex-col justify-between p-5 shrink-0 shadow-sm">
+    <div className="w-64 lg:w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 h-screen flex flex-col justify-between overflow-y-auto overscroll-contain p-5 shrink-0 shadow-sm">
       <div className="space-y-8">
         {/* Brand Header */}
         <div className="flex items-center gap-3">
@@ -108,7 +139,7 @@ export default function Sidebar({ user, activeTab, setActiveTab, onLogout }: Sid
           </div>
           <div>
             <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight leading-none">ERP Maquila</h1>
-            <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">Textil Core v4</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">ERP Maquila</span>
           </div>
         </div>
 

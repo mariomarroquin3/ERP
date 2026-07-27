@@ -60,7 +60,24 @@ import {
   createPasswordResetRequest,
   getAllPasswordResetRequests,
   updatePasswordResetRequestStatus,
-  resetPassword
+  resetPassword,
+  // Employees & Attendance
+  getEmployees,
+  getEmployeeById,
+  createEmployee,
+  updateEmployee,
+  updateEmployeeStatus,
+  getAttendance,
+  registerAttendanceCheckIn,
+  registerAttendanceCheckOut,
+  getContractTypes,
+  getAttendanceStatuses,
+  getPayrollPeriods,
+  getPayrollPeriodDetails,
+  getPayrollPeriodStatuses,
+  generatePayrollPeriod,
+  markPayrollPeriodPaid,
+  updateDestajoHours,
 } from './src/db/queries';
 import { MySqlCustomError } from './src/db/db';
 
@@ -80,7 +97,7 @@ app.use(helmet({
 // Define rate limiters
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // Limit each IP to 200 requests per 15 mins
+  max: 1000, // Limit each IP to 200 requests per 15 mins
   standardHeaders: true,
   legacyHeaders: false,
   validate: false,
@@ -127,6 +144,20 @@ function requireRole(allowedRoles: string[]) {
       return res.status(403).json({ 
         success: false, 
         message: `Acceso denegado: Se requiere uno de los siguientes roles: ${allowedRoles.join(', ')}` 
+      });
+    }
+    next();
+  };
+}
+
+// Granular Permission Validation helper
+function requirePermission(permission: string) {
+  return (req: any, res: any, next: any) => {
+    const userPermissions: string[] = req.user?.permissions ?? [];
+    if (!userPermissions.includes(permission)) {
+      return res.status(403).json({
+        success: false,
+        message: `Acceso denegado: Se requiere el permiso '${permission}'`,
       });
     }
     next();
@@ -1126,6 +1157,157 @@ app.use((err: any, req: any, res: any, next: any) => {
   });
 });
 
+// ==========================================
+// EMPLOYEES & ATTENDANCE ENDPOINTS
+// ==========================================
+
+// GET /api/employees - List all employees
+app.get('/api/employees', authenticateToken, async (req: any, res: any, next: any) => {
+  try {
+    const userPerms: string[] = req.user?.permissions ?? [];
+    if (!userPerms.includes('employees.manage') && !userPerms.includes('attendance.view')) {
+      return res.status(403).json({ success: false, message: "Acceso denegado: Se requiere 'employees.manage' o 'attendance.view'" });
+    }
+    const employees = await getEmployees();
+    res.json({ success: true, data: employees });
+  } catch (err) { next(err); }
+});
+
+// POST /api/employees - Create employee
+app.post('/api/employees', authenticateToken, requirePermission('employees.manage'), async (req: any, res: any, next: any) => {
+  try {
+    const { full_name, position, hire_date, contract_type_id, base_salary, is_active, user_id } = req.body;
+    if (!full_name || !position || !hire_date || !contract_type_id || base_salary == null) {
+      return res.status(400).json({ success: false, message: 'Campos obligatorios: full_name, position, hire_date, contract_type_id, base_salary' });
+    }
+    const newId = await createEmployee({
+      full_name,
+      position,
+      hire_date,
+      contract_type_id: Number(contract_type_id),
+      base_salary: Number(base_salary),
+      is_active: is_active !== false,
+      user_id: user_id ?? null,
+    });
+    const employee = await getEmployeeById(newId);
+    res.status(201).json({ success: true, data: employee });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/employees/:id - Update employee
+app.put('/api/employees/:id', authenticateToken, requirePermission('employees.manage'), async (req: any, res: any, next: any) => {
+  try {
+    const id = Number(req.params.id);
+    const { full_name, position, hire_date, contract_type_id, base_salary, user_id } = req.body;
+    const updates: any = {};
+    if (full_name !== undefined) updates.full_name = full_name;
+    if (position !== undefined) updates.position = position;
+    if (hire_date !== undefined) updates.hire_date = hire_date;
+    if (contract_type_id !== undefined) updates.contract_type_id = Number(contract_type_id);
+    if (base_salary !== undefined) updates.base_salary = Number(base_salary);
+    if (user_id !== undefined) updates.user_id = user_id;
+    const ok = await updateEmployee(id, updates);
+    if (!ok) return res.status(404).json({ success: false, message: 'Empleado no encontrado' });
+    const employee = await getEmployeeById(id);
+    res.json({ success: true, data: employee });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/employees/:id/status - Toggle employee active status
+app.put('/api/employees/:id/status', authenticateToken, requirePermission('employees.manage'), async (req: any, res: any, next: any) => {
+  try {
+    const id = Number(req.params.id);
+    const { is_active } = req.body;
+    if (is_active === undefined) {
+      return res.status(400).json({ success: false, message: 'Campo obligatorio: is_active' });
+    }
+    const ok = await updateEmployeeStatus(id, !!is_active);
+    if (!ok) return res.status(404).json({ success: false, message: 'Empleado no encontrado' });
+    const employee = await getEmployeeById(id);
+    res.json({ success: true, data: employee });
+  } catch (err) { next(err); }
+});
+
+// GET /api/attendance - List attendance records
+app.get('/api/attendance', authenticateToken, requirePermission('attendance.view'), async (req: any, res: any, next: any) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const start_date = (req.query.start_date as string) || today;
+    const end_date = (req.query.end_date as string) || today;
+    const employee_id = req.query.employee_id ? Number(req.query.employee_id) : undefined;
+    const records = await getAttendance(start_date, end_date, employee_id);
+    res.json({ success: true, data: records });
+  } catch (err) { next(err); }
+});
+
+// POST /api/attendance/check-in - Register check-in
+app.post('/api/attendance/check-in', authenticateToken, requirePermission('attendance.register'), async (req: any, res: any, next: any) => {
+  try {
+    const { employee_id, work_date, check_in, status_id, stage_id } = req.body;
+    if (!employee_id || !work_date || !check_in || !status_id) {
+      return res.status(400).json({ success: false, message: 'Campos obligatorios: employee_id, work_date, check_in, status_id' });
+    }
+    const id = await registerAttendanceCheckIn(
+      Number(employee_id),
+      work_date,
+      check_in,
+      Number(status_id),
+      stage_id ? Number(stage_id) : undefined
+    );
+    res.status(201).json({ success: true, data: { id } });
+  } catch (err) { next(err); }
+});
+
+// POST /api/attendance/check-out - Register check-out
+app.post('/api/attendance/check-out', authenticateToken, requirePermission('attendance.register'), async (req: any, res: any, next: any) => {
+  try {
+    const { employee_id, work_date, check_out } = req.body;
+    if (!employee_id || !work_date || !check_out) {
+      return res.status(400).json({ success: false, message: 'Campos obligatorios: employee_id, work_date, check_out' });
+    }
+    const ok = await registerAttendanceCheckOut(Number(employee_id), work_date, check_out);
+    if (!ok) return res.status(404).json({ success: false, message: 'No se encontró registro de asistencia para ese empleado y fecha' });
+    res.json({ success: true, message: 'Salida registrada correctamente' });
+  } catch (err) { next(err); }
+});
+
+// GET /api/catalogs/contract-types
+app.get('/api/catalogs/contract-types', authenticateToken, async (req: any, res: any, next: any) => {
+  try {
+    const data = await getContractTypes();
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+// GET /api/catalogs/attendance-statuses
+app.get('/api/catalogs/attendance-statuses', authenticateToken, async (req: any, res: any, next: any) => {
+  try {
+    const data = await getAttendanceStatuses();
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+// ==========================================
+// PAYROLL ENDPOINTS
+// ==========================================
+app.get('/api/payroll/period-statuses', authenticateToken, requirePermission('payroll.view'), async (_req: any, res: any, next: any) => { try { res.json({ success: true, data: await getPayrollPeriodStatuses() }); } catch (err) { next(err); } });
+app.get('/api/payroll/periods', authenticateToken, requirePermission('payroll.view'), async (_req: any, res: any, next: any) => { try { res.json({ success: true, data: await getPayrollPeriods() }); } catch (err) { next(err); } });
+app.get('/api/payroll/periods/:id/details', authenticateToken, requirePermission('payroll.view'), async (req: any, res: any, next: any) => { try { res.json({ success: true, data: await getPayrollPeriodDetails(Number(req.params.id)) }); } catch (err) { next(err); } });
+app.post('/api/payroll/periods/generate', authenticateToken, requirePermission('payroll.manage'), async (req: any, res: any, next: any) => { try { const { start_date, end_date } = req.body; if (!start_date || !end_date || start_date > end_date) return res.status(400).json({ success:false, message:'Debe indicar un rango de fechas válido.' }); const id=await generatePayrollPeriod(start_date,end_date); res.status(201).json({ success:true, data:{ id } }); } catch (err) { next(err); } });
+app.post('/api/payroll/periods/:id/pay', authenticateToken, requirePermission('payroll.manage'), async (req: any, res: any, next: any) => { try { const ok=await markPayrollPeriodPaid(Number(req.params.id)); if (!ok) return res.status(404).json({ success:false, message:'Período no encontrado o no disponible para pago.' }); res.json({ success:true, message:'Período marcado como pagado.' }); } catch (err) { next(err); } });
+app.patch('/api/payroll/details/:id/hours', authenticateToken, requirePermission('payroll.manage'), async (req: any, res: any, next: any) => {
+  try {
+    const { hours } = req.body;
+    if (hours === undefined || !Number.isInteger(Number(hours)) || Number(hours) < 0) {
+      return res.status(400).json({ success: false, message: 'La cantidad de horas debe ser un número entero positivo.' });
+    }
+    const ok = await updateDestajoHours(Number(req.params.id), Number(hours));
+    if (!ok) return res.status(404).json({ success: false, message: 'Detalle no encontrado.' });
+    res.json({ success: true, message: 'Horas y pago actualizados correctamente.' });
+  } catch (err) {
+    next(err);
+  }
+});
 // ==========================================
 // VITE DEV SERVER OR STATIC SERVING IN PROD
 // ==========================================

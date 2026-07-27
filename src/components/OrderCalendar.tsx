@@ -164,39 +164,51 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
     }
   };
 
-  // Render Calendar Grid Days
-  const calendarDays = [];
-  // Placeholders for empty days at start of month
-  for (let i = 0; i < firstDayIndex; i++) {
+  // Render calendar cells. Keeping the colours in Tailwind (instead of inline
+  // light-only styles) lets priority chips remain legible in dark mode.
+  const calendarDays: React.ReactNode[] = [];
+
+  for (let index = 0; index < firstDayIndex; index++) {
     calendarDays.push(
-      <div key={`empty-${i}`} className="h-32 bg-slate-50/50 border border-slate-100 p-2 text-slate-300 dark:bg-slate-800/50"></div>
+      <div
+        key={`empty-${index}`}
+        aria-hidden="true"
+        className="h-32 border border-slate-100 bg-slate-50/50 p-2 dark:border-slate-700 dark:bg-slate-800/50"
+      />
     );
   }
 
-  // Actual days
   for (let day = 1; day <= daysInMonth; day++) {
     const dayOrders = getOrdersForDay(day);
-    const isToday = new Date().getDate() === day && new Date().getMonth() === currentDate.getMonth() && new Date().getFullYear() === currentDate.getFullYear();
+    const today = new Date();
+    const isToday = today.getDate() === day
+      && today.getMonth() === currentDate.getMonth()
+      && today.getFullYear() === currentDate.getFullYear();
 
     calendarDays.push(
-      <div 
-        key={`day-${day}`} 
-        className={`h-32 bg-white border border-slate-100 p-2 flex flex-col justify-between overflow-y-auto hover:bg-slate-50/50 transition ${
-          isToday ? 'ring-2 ring-indigo-500 ring-inset' : ''
+      <div
+        key={`day-${day}`}
+        className={`h-32 overflow-y-auto border border-slate-100 bg-white p-2 transition hover:bg-slate-50/50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700/50 ${
+          isToday ? 'ring-2 ring-inset ring-indigo-500 dark:ring-indigo-400' : ''
         }`}
       >
-        <span className={`text-xs font-bold ${isToday ? 'text-indigo-600' : 'text-slate-600'}`}>{day}</span>
-        <div className="flex flex-col gap-1 mt-1 grow overflow-y-auto">
+        <span className={`text-xs font-bold ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-600 dark:text-slate-300'}`}>
+          {day}
+        </span>
+        <div className="mt-1 flex grow flex-col gap-1 overflow-y-auto">
           {dayOrders.map((order) => (
             <button
               key={order.id}
+              type="button"
               onClick={() => handleOrderClick(order)}
-              className="w-full text-left p-1.5 rounded-lg text-[10px] font-semibold border truncate hover:scale-102 transition shadow-xs"
-              style={{
-                backgroundColor: order.priority === 'urgent' ? '#FFF1F2' : order.priority === 'high' ? '#FEF3C7' : '#EEF2FF',
-                borderColor: order.priority === 'urgent' ? '#FECDD3' : order.priority === 'high' ? '#FDE68A' : '#C7D2FE',
-                color: order.priority === 'urgent' ? '#9F1239' : order.priority === 'high' ? '#92400E' : '#3730A3'
-              }}
+              className={`w-full truncate rounded-lg border p-1.5 text-left text-[10px] font-semibold shadow-xs transition hover:scale-[1.02] ${
+                order.priority === 'urgent'
+                  ? 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/70 dark:bg-rose-950/50 dark:text-rose-200'
+                  : order.priority === 'high'
+                    ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-200'
+                    : 'border-indigo-200 bg-indigo-50 text-indigo-800 dark:border-indigo-900/70 dark:bg-indigo-950/50 dark:text-indigo-200'
+              }`}
+              title={`Pedido #${order.id}: ${order.client_name}`}
             >
               #{order.id} | {order.client_name}
             </button>
@@ -205,6 +217,7 @@ export default function OrderCalendar({ token, onCreateNewOrder }: OrderCalendar
       </div>
     );
   }
+
 
   return (
     <div className="space-y-6">

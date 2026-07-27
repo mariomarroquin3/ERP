@@ -34,6 +34,15 @@ SET NAMES utf8mb4;
 --
 -- [work_calendar] (Capacidad de producción diaria por etapa de producción)
 -- [audit_logs] (Registro detallado para auditoría de acciones del sistema)
+--
+-- MÓDULO DE EMPLEADOS Y ASISTENCIA:
+-- [contract_types] 1 ------ N [employees] N ------ 1 [users] (opcional)
+--                                |
+--                                +-- 1 ------ N [attendance] N ------ 1 [attendance_status]
+--                                |
+--                                +-- 1 ------ N [payroll_details] N ------ 1 [payroll_periods] N ------ 1 [payroll_period_status]
+--                                                                  |
+--                                                                  +-- N ------ 1 [production_stages] (opcional)
 -- =============================================================================
 
 
@@ -89,7 +98,8 @@ CREATE TABLE IF NOT EXISTS sizes (
     code VARCHAR(20) NOT NULL UNIQUE,
     name VARCHAR(50) NOT NULL,
     sort_order INT NOT NULL,
-    gender VARCHAR(50) NOT NULL DEFAULT 'unisex'
+    gender VARCHAR(50) NOT NULL DEFAULT 'unisex',
+    apparel_category VARCHAR(50) NOT NULL DEFAULT 'camisa'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -471,8 +481,15 @@ INSERT INTO sizes (id, code, name, sort_order, gender) VALUES
 (9, 'M-M', 'M Mujer', 13, 'mujer'),
 (10, 'M-L', 'L Mujer', 14, 'mujer'),
 (11, 'M-XL', 'XL Mujer', 15, 'mujer'),
-(12, 'M-XXL', 'XXL Mujer', 16, 'mujer')
+(12, 'M-XXL', 'XXL Mujer', 16, 'mujer'),
+(13, 'P-H-4', '4 Hombre', 101, 'hombre'), (14, 'P-H-6', '6 Hombre', 102, 'hombre'), (15, 'P-H-8', '8 Hombre', 103, 'hombre'), (16, 'P-H-12', '12 Hombre', 104, 'hombre'),
+(17, 'P-H-28', '28 Hombre', 105, 'hombre'), (18, 'P-H-30', '30 Hombre', 106, 'hombre'), (19, 'P-H-32', '32 Hombre', 107, 'hombre'), (20, 'P-H-34', '34 Hombre', 108, 'hombre'),
+(21, 'P-H-36', '36 Hombre', 109, 'hombre'), (22, 'P-H-38', '38 Hombre', 110, 'hombre'), (23, 'P-H-40', '40 Hombre', 111, 'hombre'), (24, 'P-H-42', '42 Hombre', 112, 'hombre'),
+(25, 'P-M-6', '6 Mujer', 121, 'mujer'), (26, 'P-M-8', '8 Mujer', 122, 'mujer'), (27, 'P-M-10', '10 Mujer', 123, 'mujer'), (28, 'P-M-12', '12 Mujer', 124, 'mujer'),
+(29, 'P-M-14', '14 Mujer', 125, 'mujer'), (30, 'P-M-16', '16 Mujer', 126, 'mujer'), (31, 'P-M-18', '18 Mujer', 127, 'mujer'), (32, 'P-M-20', '20 Mujer', 128, 'mujer')
 ON DUPLICATE KEY UPDATE code=VALUES(code), name=VALUES(name), sort_order=VALUES(sort_order), gender=VALUES(gender);
+
+UPDATE sizes SET apparel_category = CASE WHEN code LIKE 'P-%' THEN 'pantalon' ELSE 'camisa' END WHERE id > 0;
 
 -- Inserción de Usuarios de Prueba (Contraseña en hash correspondiente a '123456')
 INSERT INTO users (id, full_name, email, password_hash, role_id, is_active) VALUES
@@ -505,8 +522,153 @@ ON DUPLICATE KEY UPDATE full_name=VALUES(full_name), email=VALUES(email), role_i
 --    y `product_sizes` con modificadores de precio individuales. Al capturar snapshots 
 --    de estos modificadores al momento de registrar el ítem del pedido, se garantiza la 
 --    consistencia histórica de la facturación y los precios cobrados.
+-- 7. NÓMINA COMO SNAPSHOT: `payroll_details` congela salario base, días, horas, deducciones y total al calcular un período. El cálculo vive en la aplicación; contratos por destajo se etiquetan para cálculo manual hasta definir la fórmula.
 -- 6. RECUPERACIÓN DE CONTRASEÑA CON APROBACIÓN: La tabla `password_reset_requests`
 --    implementa un flujo seguro de restablecimiento de contraseña donde el usuario
 --    solicita el cambio y un administrador debe aprobarlo antes de que el usuario
 --    pueda definir su nueva contraseña desde la pantalla de login.
 -- =============================================================================
+
+
+-- =============================================================================
+-- MÓDULO DE EMPLEADOS Y ASISTENCIA
+-- =============================================================================
+
+-- Tabla de Tipos de Contrato
+CREATE TABLE IF NOT EXISTS contract_types (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tabla de Empleados
+CREATE TABLE IF NOT EXISTS employees (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(255) NOT NULL,
+    position VARCHAR(255) NOT NULL,
+    hire_date DATE NOT NULL,
+    contract_type_id INT NOT NULL,
+    base_salary DECIMAL(10,2) NOT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    user_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_employees_contract FOREIGN KEY (contract_type_id) REFERENCES contract_types (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_employees_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tabla de Estados de Asistencia
+CREATE TABLE IF NOT EXISTS attendance_status (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tabla de Registros de Asistencia
+CREATE TABLE IF NOT EXISTS attendance (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    employee_id INT NOT NULL,
+    work_date DATE NOT NULL,
+    check_in TIME NULL,
+    check_out TIME NULL,
+    attendance_status_id INT NOT NULL,
+    stage_id INT NULL,
+    UNIQUE KEY uq_employee_date (employee_id, work_date),
+    CONSTRAINT fk_attendance_employee FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE,
+    CONSTRAINT fk_attendance_status FOREIGN KEY (attendance_status_id) REFERENCES attendance_status (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_attendance_stage FOREIGN KEY (stage_id) REFERENCES production_stages (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tabla de Estados de Período de Nómina
+CREATE TABLE IF NOT EXISTS payroll_period_status (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS payroll_periods (
+    id INT AUTO_INCREMENT PRIMARY KEY, start_date DATE NOT NULL, end_date DATE NOT NULL, status_id INT NOT NULL DEFAULT 1, closed_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_payroll_period_dates CHECK (end_date >= start_date),
+    CONSTRAINT fk_payroll_period_status FOREIGN KEY (status_id) REFERENCES payroll_period_status (id) ON DELETE RESTRICT,
+    UNIQUE KEY uq_payroll_period_dates (start_date, end_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS payroll_period_quincenas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    payroll_period_id INT NOT NULL,
+    year INT NOT NULL,
+    month INT NOT NULL,
+    quincena_number INT NOT NULL,
+    FOREIGN KEY (payroll_period_id) REFERENCES payroll_periods(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_quincena_paid (year, month, quincena_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Snapshot por empleado: no cambia si el salario cambia posteriormente.
+CREATE TABLE IF NOT EXISTS payroll_details (
+    id INT AUTO_INCREMENT PRIMARY KEY, payroll_period_id INT NOT NULL, employee_id INT NOT NULL,
+    days_worked DECIMAL(6,2) NOT NULL DEFAULT 0.00, hours_worked DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+    base_salary_snapshot DECIMAL(10,2) NOT NULL, deductions DECIMAL(10,2) NOT NULL DEFAULT 0.00, total_to_pay DECIMAL(10,2) NOT NULL DEFAULT 0.00, notes TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_payroll_detail_period FOREIGN KEY (payroll_period_id) REFERENCES payroll_periods (id) ON DELETE CASCADE,
+    CONSTRAINT fk_payroll_detail_employee FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE RESTRICT,
+    UNIQUE KEY uq_payroll_period_employee (payroll_period_id, employee_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- =============================================================================
+-- DATOS DE SEED: Módulo de Empleados y Asistencia
+-- =============================================================================
+
+-- Tipos de Contrato
+INSERT INTO contract_types (id, code, name) VALUES
+(1, 'tiempo_completo', 'Tiempo Completo'),
+(2, 'medio_tiempo', 'Medio Tiempo'),
+(3, 'destajo', 'Por producción/destajo')
+ON DUPLICATE KEY UPDATE code=VALUES(code), name=VALUES(name);
+
+-- Estados de Asistencia
+INSERT INTO attendance_status (id, code, name) VALUES
+(1, 'presente', 'Presente'),
+(2, 'tardanza', 'Tardanza'),
+(3, 'ausente', 'Ausente'),
+(4, 'permiso', 'Permiso'),
+(5, 'incapacidad', 'Incapacidad')
+ON DUPLICATE KEY UPDATE code=VALUES(code), name=VALUES(name);
+
+-- Permisos de roles para todos los módulos
+INSERT INTO role_permissions (role_id, permission_key, is_enabled) VALUES
+-- Admin (id: 1)
+(1, 'dashboard', 1), (1, 'calendar', 1), (1, 'create_order', 1), (1, 'kanban', 1), (1, 'admin_panel', 1), (1, 'my_orders', 0),
+(1, 'employees.manage', 1), (1, 'attendance.view', 1), (1, 'attendance.register', 1), (1, 'payroll.manage', 1), (1, 'payroll.view', 1),
+-- Tienda (id: 2)
+(2, 'dashboard', 1), (2, 'calendar', 1), (2, 'create_order', 1), (2, 'kanban', 0), (2, 'admin_panel', 0), (2, 'my_orders', 0),
+(2, 'employees.manage', 0), (2, 'attendance.view', 0), (2, 'attendance.register', 0),
+-- Taller (id: 3)
+(3, 'dashboard', 0), (3, 'calendar', 0), (3, 'create_order', 0), (3, 'kanban', 1), (3, 'admin_panel', 0), (3, 'my_orders', 0),
+(3, 'employees.manage', 0), (3, 'attendance.view', 1), (3, 'attendance.register', 1),
+-- Cliente (id: 4)
+(4, 'dashboard', 0), (4, 'calendar', 0), (4, 'create_order', 0), (4, 'kanban', 0), (4, 'admin_panel', 0), (4, 'my_orders', 1),
+(4, 'employees.manage', 0), (4, 'attendance.view', 0), (4, 'attendance.register', 0)
+ON DUPLICATE KEY UPDATE is_enabled=VALUES(is_enabled);
+
+
+-- Empleados de muestra
+INSERT INTO employees (id, full_name, position, hire_date, contract_type_id, base_salary, is_active, user_id) VALUES
+(1, 'Supervisor Taller', 'Supervisor de Producción', '2022-01-10', 1, 600.00, 1, 2),
+(2, 'Ana García López', 'Operaria de Corte', '2023-03-15', 1, 450.00, 1, NULL),
+(3, 'Carlos Mejía Rivas', 'Operario de Confección', '2023-06-01', 1, 450.00, 1, NULL),
+(4, 'María Torres Vásquez', 'Operaria de Bordado', '2024-01-20', 3, 380.00, 1, NULL)
+ON DUPLICATE KEY UPDATE full_name=VALUES(full_name), position=VALUES(position);
+
+-- Registros de Asistencia de muestra
+INSERT INTO attendance (employee_id, work_date, check_in, check_out, attendance_status_id, stage_id) VALUES
+(1, DATE_SUB(CURDATE(), INTERVAL 2 DAY), '07:55:00', '16:30:00', 1, 1),
+(2, DATE_SUB(CURDATE(), INTERVAL 2 DAY), '08:00:00', '16:00:00', 1, 1),
+(3, DATE_SUB(CURDATE(), INTERVAL 2 DAY), '08:20:00', '16:00:00', 2, 3),
+(1, DATE_SUB(CURDATE(), INTERVAL 1 DAY), '08:00:00', '16:30:00', 1, 1),
+(2, DATE_SUB(CURDATE(), INTERVAL 1 DAY), '08:05:00', '16:00:00', 1, 1),
+(4, DATE_SUB(CURDATE(), INTERVAL 1 DAY), NULL, NULL, 4, NULL),
+(1, CURDATE(), '07:58:00', NULL, 1, 1),
+(2, CURDATE(), '08:00:00', NULL, 1, 1),
+(3, CURDATE(), NULL, NULL, 3, NULL)
+ON DUPLICATE KEY UPDATE check_in=VALUES(check_in), check_out=VALUES(check_out), attendance_status_id=VALUES(attendance_status_id);
+-- Catálogo y seeds de nómina. Usa empleados 1–4 y asistencia existente de días -2/-1.
+INSERT INTO payroll_period_status (id, code, name) VALUES
+(1, 'abierto', 'Abierto'), (2, 'calculado', 'Calculado'), (3, 'pagado', 'Pagado')
+ON DUPLICATE KEY UPDATE code=VALUES(code), name=VALUES(name);

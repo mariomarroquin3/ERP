@@ -18,6 +18,7 @@ export interface Product {
   base_price: number;
   active: boolean;
   product_type_id: number;
+  product_type_name?: string;
 }
 
 export interface AttributeType {
@@ -55,6 +56,7 @@ export interface ProductSize {
   size_code?: string;
   size_name?: string;
   size_gender?: string;
+  apparel_category?: 'camisa' | 'pantalon' | 'unisex';
 }
 
 export interface Size {
@@ -63,6 +65,7 @@ export interface Size {
   name: string;
   sort_order: number;
   gender?: string;
+  apparel_category?: 'camisa' | 'pantalon' | 'unisex';
 }
 
 export interface OrderItemSize {
@@ -221,4 +224,57 @@ export interface ReworkEvent {
   stage_name?: string;
 }
 
+// ==========================================
+// EMPLOYEES & ATTENDANCE MODULE
+// ==========================================
 
+export interface ContractType {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface AttendanceStatus {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface Employee {
+  id: number;
+  full_name: string;
+  position: string;
+  hire_date: string;
+  contract_type_id: number;
+  base_salary: number;
+  is_active: boolean;
+  user_id: number | null;
+  created_at?: string;
+  updated_at?: string;
+  // Joined fields
+  contract_type_name?: string;
+  contract_type_code?: string;
+}
+
+export interface Attendance {
+  id: number;
+  employee_id: number;
+  work_date: string;
+  check_in: string | null;
+  check_out: string | null;
+  attendance_status_id: number;
+  stage_id: number | null;
+  // Joined fields
+  employee_name?: string;
+  status_name?: string;
+  status_code?: string;
+  stage_name?: string;
+}
+
+
+// ==========================================
+// PAYROLL MODULE
+// ==========================================
+export interface PayrollPeriodStatus { id: number; code: string; name: string; }
+export interface PayrollPeriod { id: number; start_date: string; end_date: string; status_id: number; closed_at: string | null; created_at?: string; updated_at?: string; status_code?: string; status_name?: string; }
+export interface PayrollDetail { id: number; payroll_period_id: number; employee_id: number; days_worked: number; hours_worked: number; base_salary_snapshot: number; deductions: number; total_to_pay: number; notes: string | null; employee_name?: string; position?: string; contract_type_code?: string; }

@@ -1,5 +1,7 @@
 import { createPool, Pool } from 'mysql2/promise';
 
+export const IVA_RATE = 0.13;
+
 // Define DB Types
 export interface Role {
   id: number;
@@ -59,6 +61,7 @@ export interface Size {
   name: string;
   sort_order: number;
   gender?: string;
+  apparel_category?: 'camisa' | 'pantalon' | 'unisex';
 }
 
 export interface Product {
@@ -67,6 +70,7 @@ export interface Product {
   base_price: number;
   active: boolean;
   product_type_id: number;
+  product_type_name?: string;
 }
 
 export interface ProductAttribute {
@@ -260,6 +264,41 @@ export interface PasswordResetRequest {
   created_at: string;
 }
 
+export interface ContractType {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface AttendanceStatus {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface Employee {
+  id: number;
+  full_name: string;
+  position: string;
+  hire_date: string;
+  contract_type_id: number;
+  base_salary: number;
+  is_active: boolean;
+  user_id: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Attendance {
+  id: number;
+  employee_id: number;
+  work_date: string;
+  check_in: string | null;
+  check_out: string | null;
+  attendance_status_id: number;
+  stage_id: number | null;
+}
+
 
 
 
@@ -345,6 +384,13 @@ class MockDatabase {
   reworkEvents: ReworkEvent[] = [];
   invoiceSequences: { year: number; next_number: number }[] = [];
   passwordResetRequests: PasswordResetRequest[] = [];
+  contractTypes: ContractType[] = [];
+  attendanceStatuses: AttendanceStatus[] = [];
+  employees: Employee[] = [];
+  attendance: Attendance[] = [];
+  payrollPeriodStatuses: PayrollPeriodStatus[] = [];
+  payrollPeriods: PayrollPeriod[] = [];
+  payrollDetails: PayrollDetail[] = [];
 
   private nextIds: Record<string, number> = {};
 
@@ -404,13 +450,28 @@ class MockDatabase {
       { role_id: 4, permission_key: 'admin_panel', is_enabled: false },
       { role_id: 4, permission_key: 'my_orders', is_enabled: true },
 
-      // Operario permissions
-      { role_id: 5, permission_key: 'dashboard', is_enabled: false },
-      { role_id: 5, permission_key: 'calendar', is_enabled: false },
-      { role_id: 5, permission_key: 'create_order', is_enabled: false },
-      { role_id: 5, permission_key: 'kanban', is_enabled: true },
-      { role_id: 5, permission_key: 'admin_panel', is_enabled: false },
-      { role_id: 5, permission_key: 'my_orders', is_enabled: false },
+      // Admin - employees & attendance
+      { role_id: 1, permission_key: 'employees.manage', is_enabled: true },
+      { role_id: 1, permission_key: 'attendance.view', is_enabled: true },
+      { role_id: 1, permission_key: 'attendance.register', is_enabled: true },
+      { role_id: 1, permission_key: 'payroll.manage', is_enabled: true },
+      { role_id: 1, permission_key: 'payroll.view', is_enabled: true },
+
+      // Tienda - employees & attendance
+      { role_id: 2, permission_key: 'employees.manage', is_enabled: false },
+      { role_id: 2, permission_key: 'attendance.view', is_enabled: false },
+      { role_id: 2, permission_key: 'attendance.register', is_enabled: false },
+
+      // Taller - employees & attendance
+      { role_id: 3, permission_key: 'employees.manage', is_enabled: false },
+      { role_id: 3, permission_key: 'attendance.view', is_enabled: true },
+      { role_id: 3, permission_key: 'attendance.register', is_enabled: true },
+
+      // Cliente - employees & attendance
+      { role_id: 4, permission_key: 'employees.manage', is_enabled: false },
+      { role_id: 4, permission_key: 'attendance.view', is_enabled: false },
+      { role_id: 4, permission_key: 'attendance.register', is_enabled: false },
+
     ];
 
     // 2. Users (Passwords: admin123, tienda123, taller123, cliente123 - prehashed using bcrypt)
@@ -420,9 +481,8 @@ class MockDatabase {
       { id: 2, full_name: 'Tienda Ventas', email: 'tienda@maquila.com', password_hash: '$2a$10$fG6T5R8V0v.M1pD.W6uHDe8n09Rj7P.A3l0E3gY5m1BqEshVMy1f2', role_id: 2, is_active: true },
       { id: 3, full_name: 'Supervisor Taller', email: 'taller@maquila.com', password_hash: '$2a$10$fG6T5R8V0v.M1pD.W6uHDe8n09Rj7P.A3l0E3gY5m1BqEshVMy1f2', role_id: 3, is_active: true },
       { id: 4, full_name: 'Cliente Ejemplo', email: 'cliente@maquila.com', password_hash: '$2a$10$fG6T5R8V0v.M1pD.W6uHDe8n09Rj7P.A3l0E3gY5m1BqEshVMy1f2', role_id: 4, is_active: true },
-      { id: 5, full_name: 'Operario Juan', email: 'operario@maquila.com', password_hash: '$2a$10$fG6T5R8V0v.M1pD.W6uHDe8n09Rj7P.A3l0E3gY5m1BqEshVMy1f2', role_id: 5, is_active: true },
     ];
-    this.nextIds['users'] = 6;
+    this.nextIds['users'] = 5;
 
     // 3. Product Types
     this.productTypes = [
@@ -494,7 +554,12 @@ class MockDatabase {
       { id: 11, code: 'M-XL', name: 'XL Mujer', sort_order: 15, gender: 'mujer' },
       { id: 12, code: 'M-XXL', name: 'XXL Mujer', sort_order: 16, gender: 'mujer' },
     ];
-    this.nextIds['sizes'] = 13;
+    const menPantSizes = [4, 6, 8, 12, 28, 30, 32, 34, 36, 38, 40, 42];
+    const womenPantSizes = [6, 8, 10, 12, 14, 16, 18, 20];
+    this.sizes.push(
+      ...menPantSizes.map((size, index) => ({ id: 13 + index, code: `P-H-${size}`, name: `${size} Hombre`, sort_order: 101 + index, gender: 'hombre' })),
+      ...womenPantSizes.map((size, index) => ({ id: 25 + index, code: `P-M-${size}`, name: `${size} Mujer`, sort_order: 121 + index, gender: 'mujer' }))
+    );    this.nextIds['sizes'] = 33;
 
     // 9. Products
     this.products = [
@@ -559,7 +624,9 @@ class MockDatabase {
       { id: 19, product_id: 3, size_id: 9, price_modifier: 0.00, active: true }, // M-M
       { id: 20, product_id: 3, size_id: 10, price_modifier: 0.00, active: true }, // M-L
     ];
-    this.nextIds['product_sizes'] = 21;
+    // Replace the legacy shirt scale of the sample trouser with numeric pant sizes.
+    this.productSizes = this.productSizes.filter((size) => size.product_id !== 3);
+    [...Array(20)].forEach((_, index) => this.productSizes.push({ id: 21 + index, product_id: 3, size_id: 13 + index, price_modifier: 0, active: true }));    this.nextIds['product_sizes'] = 41;
 
     // 12. Seed Work Calendar (Default max capacities for next 30 days)
     const today = new Date();
@@ -672,6 +739,68 @@ class MockDatabase {
         });
       }
     });
+
+    this.payrollPeriodStatuses = [{ id: 1, code: 'abierto', name: 'Abierto' }, { id: 2, code: 'calculado', name: 'Calculado' }, { id: 3, code: 'pagado', name: 'Pagado' }];
+    this.nextIds['payroll_periods'] = 3;
+    this.nextIds['payroll_details'] = 1;
+
+    // 14. Contract Types
+    this.contractTypes = [
+      { id: 1, code: 'tiempo_completo', name: 'Tiempo Completo' },
+      { id: 2, code: 'medio_tiempo', name: 'Medio Tiempo' },
+      { id: 3, code: 'destajo', name: 'Por producción/destajo' },
+    ];
+    this.nextIds['contract_types'] = 4;
+
+    // 15. Attendance Status
+    this.attendanceStatuses = [
+      { id: 1, code: 'presente', name: 'Presente' },
+      { id: 2, code: 'tardanza', name: 'Tardanza' },
+      { id: 3, code: 'ausente', name: 'Ausente' },
+      { id: 4, code: 'permiso', name: 'Permiso' },
+      { id: 5, code: 'incapacidad', name: 'Incapacidad' },
+    ];
+    this.nextIds['attendance_statuses'] = 6;
+
+    // 16. Employees
+    this.employees = [
+      { id: 1, full_name: 'Supervisor Taller', position: 'Supervisor de Producción', hire_date: '2022-01-10', contract_type_id: 1, base_salary: 600.00, is_active: true, user_id: 3, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { id: 2, full_name: 'Ana García López', position: 'Operaria de Corte', hire_date: '2023-03-15', contract_type_id: 1, base_salary: 450.00, is_active: true, user_id: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { id: 3, full_name: 'Carlos Mejía Rivas', position: 'Operario de Confección', hire_date: '2023-06-01', contract_type_id: 1, base_salary: 450.00, is_active: true, user_id: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { id: 4, full_name: 'María Torres Vásquez', position: 'Operaria de Bordado', hire_date: '2024-01-20', contract_type_id: 3, base_salary: 380.00, is_active: true, user_id: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    ];
+    this.nextIds['employees'] = 5;
+
+    // 17. Attendance records (last 5 days)
+    const todayForAttendance = new Date();
+    const attendanceSeed = [
+      // Day -2
+      { employee_id: 1, daysAgo: 2, check_in: '07:55', check_out: '16:30', status_id: 1, stage_id: 1 },
+      { employee_id: 2, daysAgo: 2, check_in: '08:00', check_out: '16:00', status_id: 1, stage_id: 1 },
+      { employee_id: 3, daysAgo: 2, check_in: '08:20', check_out: '16:00', status_id: 2, stage_id: 3 },
+      // Day -1
+      { employee_id: 1, daysAgo: 1, check_in: '08:00', check_out: '16:30', status_id: 1, stage_id: 1 },
+      { employee_id: 2, daysAgo: 1, check_in: '08:05', check_out: '16:00', status_id: 1, stage_id: 1 },
+      { employee_id: 4, daysAgo: 1, check_in: null, check_out: null, status_id: 4, stage_id: null },
+      // Today
+      { employee_id: 1, daysAgo: 0, check_in: '07:58', check_out: null, status_id: 1, stage_id: 1 },
+      { employee_id: 2, daysAgo: 0, check_in: '08:00', check_out: null, status_id: 1, stage_id: 1 },
+      { employee_id: 3, daysAgo: 0, check_in: null, check_out: null, status_id: 3, stage_id: null },
+    ];
+    attendanceSeed.forEach((seed) => {
+      const d = new Date(todayForAttendance);
+      d.setDate(d.getDate() - seed.daysAgo);
+      const dateStr = d.toISOString().split('T')[0];
+      this.attendance.push({
+        id: this.nextId('attendance'),
+        employee_id: seed.employee_id,
+        work_date: dateStr,
+        check_in: seed.check_in,
+        check_out: seed.check_out,
+        attendance_status_id: seed.status_id,
+        stage_id: seed.stage_id,
+      });
+    });
   }
 
   // Procedure: Recalcula subtotal del item
@@ -702,7 +831,7 @@ class MockDatabase {
     if (!order) return;
 
     const items = this.orderItems.filter((oi) => oi.order_id === orderId);
-    order.total_price = items.reduce((sum, item) => sum + Number(item.subtotal), 0);
+    order.total_price = items.reduce((sum, item) => sum + Number(item.subtotal), 0) * (1 + IVA_RATE);
   }
 
   // Trigger capacity checks
@@ -791,3 +920,9 @@ export async function getDbPool(): Promise<Pool | null> {
   }
 }
 // Mensaje para guardar el db.ts en el commit
+// ==========================================
+// PAYROLL MODULE
+// ==========================================
+export interface PayrollPeriodStatus { id: number; code: string; name: string; }
+export interface PayrollPeriod { id: number; start_date: string; end_date: string; status_id: number; closed_at: string | null; created_at?: string; updated_at?: string; status_code?: string; status_name?: string; }
+export interface PayrollDetail { id: number; payroll_period_id: number; employee_id: number; days_worked: number; hours_worked: number; base_salary_snapshot: number; deductions: number; total_to_pay: number; notes: string | null; employee_name?: string; position?: string; contract_type_code?: string; }
