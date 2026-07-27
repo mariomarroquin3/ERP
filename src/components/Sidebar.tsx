@@ -139,7 +139,7 @@ export default function Sidebar({ user, activeTab, setActiveTab, onLogout }: Sid
           </div>
           <div>
             <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight leading-none">ERP Maquila</h1>
-            <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">Textil Core v4</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">ERP Maquila</span>
           </div>
         </div>
 

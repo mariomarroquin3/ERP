@@ -97,7 +97,7 @@ app.use(helmet({
 // Define rate limiters
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // Limit each IP to 200 requests per 15 mins
+  max: 1000, // Limit each IP to 200 requests per 15 mins
   standardHeaders: true,
   legacyHeaders: false,
   validate: false,
