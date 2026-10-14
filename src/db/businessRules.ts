@@ -1,4 +1,4 @@
-import { MySqlCustomError } from './db';
+import { BusinessRuleError } from './db';
 
 /**
  * REGLA GENERAL DE DISEÑO HISTÓRICO / CONGELACIÓN DE DATOS:
@@ -31,7 +31,7 @@ export async function snapshotOrderItemSize(
   );
 
   if (psRows.length === 0) {
-    throw new MySqlCustomError('45007', 'ERR_SIZE_PRODUCT_MISMATCH', 'La talla seleccionada no existe para el producto');
+    throw new BusinessRuleError('45007', 'ERR_SIZE_PRODUCT_MISMATCH', 'La talla seleccionada no existe para el producto');
   }
 
   const ps = psRows[0];
@@ -42,12 +42,12 @@ export async function snapshotOrderItemSize(
   );
 
   if (itemRows.length === 0) {
-    throw new MySqlCustomError('45007', 'ERR_SIZE_PRODUCT_MISMATCH', 'El ítem de pedido no existe');
+    throw new BusinessRuleError('45007', 'ERR_SIZE_PRODUCT_MISMATCH', 'El ítem de pedido no existe');
   }
 
   const item = itemRows[0];
   if (ps.product_id !== item.product_id) {
-    throw new MySqlCustomError(
+    throw new BusinessRuleError(
       '45007',
       'ERR_SIZE_PRODUCT_MISMATCH',
       'La talla seleccionada no coincide con el producto del pedido'
@@ -55,7 +55,7 @@ export async function snapshotOrderItemSize(
   }
 
   if (!ps.active) {
-    throw new MySqlCustomError(
+    throw new BusinessRuleError(
       '45007',
       'ERR_SIZE_PRODUCT_MISMATCH',
       'La talla seleccionada no está activa para este producto'
@@ -100,7 +100,7 @@ export async function snapshotOrderItemAttribute(
 
   if (requiresCatalogValue) {
     if (!attributeValueId) {
-      throw new MySqlCustomError(
+      throw new BusinessRuleError(
         '45004',
         'ERR_ATTRIBUTE_VALUE_REQUIRED',
         'Se requiere seleccionar un valor de catálogo para este atributo'
@@ -111,7 +111,7 @@ export async function snapshotOrderItemAttribute(
       [attributeValueId, attributeId]
     );
     if (valRows.length === 0) {
-      throw new MySqlCustomError(
+      throw new BusinessRuleError(
         '45004',
         'ERR_ATTRIBUTE_VALUE_REQUIRED',
         'El valor de atributo seleccionado no es válido o no pertenece a este atributo'
@@ -121,7 +121,7 @@ export async function snapshotOrderItemAttribute(
     priceModifierSnapshot = Number(valRows[0].price_modifier);
   } else {
     if (!customValue || String(customValue).trim() === '') {
-      throw new MySqlCustomError(
+      throw new BusinessRuleError(
         '45005',
         'ERR_CUSTOM_VALUE_REQUIRED',
         'Se requiere ingresar un valor personalizado para este atributo libre'
@@ -158,7 +158,7 @@ export async function validateAndReserveCapacity(
   );
 
   if (calRows.length === 0) {
-    throw new MySqlCustomError(
+    throw new BusinessRuleError(
       '45003',
       'ERR_MISSING_CAPACITY_DEFINITION',
       'No hay capacidad definida en work_calendar para esta fecha y etapa'
@@ -167,7 +167,7 @@ export async function validateAndReserveCapacity(
 
   const cal = calRows[0];
   if (!cal.is_working_day) {
-    throw new MySqlCustomError(
+    throw new BusinessRuleError(
       '45002',
       'ERR_NON_WORKING_DAY',
       'La fecha seleccionada no es día laborable para esta etapa'
@@ -191,7 +191,7 @@ export async function validateAndReserveCapacity(
 
   if (committed + workloadPoints > cal.max_capacity_points) {
     const available = cal.max_capacity_points - committed;
-    throw new MySqlCustomError(
+    throw new BusinessRuleError(
       '45001',
       'ERR_CAPACITY_EXCEEDED',
       `Capacidad de taller excedida para esta fecha y etapa. Capacidad disponible: ${available} puntos, Requerido: ${workloadPoints} puntos`
@@ -272,7 +272,7 @@ export async function assertClientNameImmutable(
   if (orderRows.length > 0) {
     const oldClientName = orderRows[0].client_name;
     if (oldClientName !== newClientName) {
-      throw new MySqlCustomError(
+      throw new BusinessRuleError(
         '45006',
         'ERR_IMMUTABLE_FIELD',
         'El nombre del cliente es un campo inmutable y no puede modificarse'
@@ -283,7 +283,7 @@ export async function assertClientNameImmutable(
 
 /**
  * Validates that adding a payment does not exceed the order's total price (with FOR UPDATE lock).
- * Enforces MySqlCustomError with state 45009 / ERR_OVERPAYMENT.
+ * Enforces BusinessRuleError with state 45009 / ERR_OVERPAYMENT.
  */
 export async function validateAndCheckOverpayment(
   conn: any,
@@ -306,7 +306,7 @@ export async function validateAndCheckOverpayment(
   const totalPaidSoFar = Number(paymentRows[0].total_paid);
 
   if (totalPaidSoFar + amount > totalPrice + 0.01) {
-    throw new MySqlCustomError(
+    throw new BusinessRuleError(
       '45009',
       'ERR_OVERPAYMENT',
       `El pago de $${amount.toFixed(2)} excede el saldo pendiente de $${(totalPrice - totalPaidSoFar).toFixed(2)}. Total del pedido: $${totalPrice.toFixed(2)}.`
@@ -317,7 +317,7 @@ export async function validateAndCheckOverpayment(
 /**
  * Validates that the discount percentage is authorized for the given user role (with FOR UPDATE lock).
  * Discounts above 15% require 'admin' role.
- * Enforces MySqlCustomError with state 45010 / ERR_DISCOUNT_UNAUTHORIZED.
+ * Enforces BusinessRuleError with state 45010 / ERR_DISCOUNT_UNAUTHORIZED.
  * Returns the total price of the order so it can be used for subtotal.
  */
 export async function validateDiscountAuthorization(
@@ -338,7 +338,7 @@ export async function validateDiscountAuthorization(
   if (totalPrice > 0) {
     const discountPercentage = (discount / totalPrice) * 100;
     if (discountPercentage > 15 && userRole !== 'admin') {
-      throw new MySqlCustomError(
+      throw new BusinessRuleError(
         '45010',
         'ERR_DISCOUNT_UNAUTHORIZED',
         `El descuento de $${discount.toFixed(2)} (${discountPercentage.toFixed(1)}%) supera el límite del 15% permitido para su rol. Solicite autorización de un administrador.`
@@ -358,7 +358,7 @@ export async function getNextInvoiceNumber(
 ): Promise<number> {
   // a. Ensure row exists for this year
   await conn.query(
-    `INSERT INTO invoice_sequences (year, next_number) VALUES (?, 1) ON DUPLICATE KEY UPDATE year = year`,
+    `INSERT INTO invoice_sequences (year, next_number) VALUES (?, 1) ON CONFLICT (year) DO NOTHING`,
     [year]
   );
 
@@ -408,7 +408,7 @@ export async function validateOrderStatusTransition(
 
   // terminal state check
   if (oldStatusId === 5 || oldStatusId === 6) {
-    throw new MySqlCustomError(
+    throw new BusinessRuleError(
       '45011',
       'ERR_TERMINAL_STATE',
       'No se puede cambiar el estado de un pedido que ya está en estado terminal (Entregado o Cancelado).'
@@ -417,14 +417,14 @@ export async function validateOrderStatusTransition(
 
   // transition paths check
   if (newStatusId === 3 && oldStatusId !== 2) {
-    throw new MySqlCustomError(
+    throw new BusinessRuleError(
       '45012',
       'ERR_INVALID_TRANSITION',
       'Un pedido sólo puede pasar a "En Producción" si primero ha sido "Confirmado".'
     );
   }
   if (newStatusId === 4 && oldStatusId !== 3) {
-    throw new MySqlCustomError(
+    throw new BusinessRuleError(
       '45012',
       'ERR_INVALID_TRANSITION',
       'Un pedido sólo puede pasar a "Listo para Entrega" si primero estuvo "En Producción".'
@@ -441,7 +441,7 @@ export async function validateOrderStatusTransition(
     const balance = totalPrice - totalPaid;
 
     if (balance > 0.01 && userRole !== 'admin') {
-      throw new MySqlCustomError(
+      throw new BusinessRuleError(
         '45013',
         'ERR_OUTSTANDING_BALANCE',
         `No se permite registrar la entrega del pedido #${orderId} con un saldo pendiente de $${balance.toFixed(2)}, a menos que cuente con autorización del Administrador.`

@@ -30,7 +30,7 @@ export default function App() {
     if (user) {
       if (user.role === 'admin' || user.role === 'tienda') {
         setActiveTab('dashboard');
-      } else if (user.role === 'taller') {
+      } else if (user.role === 'taller' || user.role === 'operario') {
         setActiveTab('kanban');
       } else if (user.role === 'cliente') {
         setActiveTab('my-orders');

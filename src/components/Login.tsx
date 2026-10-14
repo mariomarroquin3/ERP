@@ -346,7 +346,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 dark:text-slate-100 text-sm bg-slate-50/50 dark:bg-slate-800/50"
-                          placeholder="Mínimo 6 caracteres"
+                          placeholder="Mínimo 8 caracteres"
                         />
                       </div>
                     </motion.div>

@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { getDbPool, mockDb, MySqlCustomError, User, Product, ProductAttribute, ProductSize, Order, OrderItem, ProductionTask, WorkCalendar, Size, ProductAttributeValue, getProductionSchedule, ReworkEvent } from './db';
+import { getDbPool, mockDb, BusinessRuleError, User, Product, ProductAttribute, ProductSize, Order, OrderItem, ProductionTask, WorkCalendar, Size, ProductAttributeValue, getProductionSchedule, ReworkEvent } from './db';
 import {
   snapshotOrderItemSize,
   snapshotOrderItemAttribute,
@@ -13,18 +13,17 @@ import {
   validateOrderStatusTransition
 } from './businessRules';
 
-// Retry with exponential backoff helper for MySQL locks
+// Postgres SQLSTATE codes worth retrying: serialization_failure, deadlock_detected, lock_not_available
+const RETRYABLE_PG_CODES = new Set(['40001', '40P01', '55P03']);
+
+// Retry with exponential backoff helper for transient lock errors
 export async function runWithRetry<T>(fn: () => Promise<T>, retries = 3, delay = 100): Promise<T> {
   try {
     return await fn();
   } catch (error: any) {
-    const isLockError =
-      error.errno === 1205 ||
-      error.errno === 1213 ||
-      error.code === 'ER_LOCK_WAIT_TIMEOUT' ||
-      error.code === 'ER_LOCK_DEADLOCK';
+    const isLockError = RETRYABLE_PG_CODES.has(error.code);
     if (isLockError && retries > 0) {
-      console.warn(`Lock error encountered (errno: ${error.errno}). Retrying in ${delay}ms... (${retries} retries left)`);
+      console.warn(`Lock error encountered (code: ${error.code}). Retrying in ${delay}ms... (${retries} retries left)`);
       await new Promise((resolve) => setTimeout(resolve, delay));
       return runWithRetry(fn, retries - 1, delay * 2);
     }
@@ -36,7 +35,7 @@ export async function runWithRetry<T>(fn: () => Promise<T>, retries = 3, delay =
 export async function getUserByEmail(email: string): Promise<User | null> {
   const pool = await getDbPool();
   if (pool) {
-    const [rows]: any = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+    const [rows]: any = await pool.query('SELECT * FROM users WHERE lower(email) = lower(?)', [email]);
     return rows.length > 0 ? rows[0] : null;
   } else {
     const user = mockDb.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
@@ -59,7 +58,7 @@ export async function getClients(): Promise<{ id: number; full_name: string; ema
   const pool = await getDbPool();
   if (pool) {
     const [rows]: any = await pool.query(
-      'SELECT u.id, u.full_name, u.email FROM users u JOIN roles r ON u.role_id = r.id WHERE r.name = "cliente" AND u.is_active = TRUE'
+      "SELECT u.id, u.full_name, u.email FROM users u JOIN roles r ON u.role_id = r.id WHERE r.name = 'cliente' AND u.is_active = TRUE ORDER BY u.full_name"
     );
     return rows;
   } else {
@@ -72,7 +71,7 @@ export async function getClients(): Promise<{ id: number; full_name: string; ema
 export async function getPasswordResetRequest(email: string): Promise<any | null> {
   const pool = await getDbPool();
   if (pool) {
-    const [rows]: any = await pool.query('SELECT * FROM password_reset_requests WHERE email = ? ORDER BY id DESC LIMIT 1', [email]);
+    const [rows]: any = await pool.query('SELECT * FROM password_reset_requests WHERE lower(email) = lower(?) ORDER BY id DESC LIMIT 1', [email]);
     return rows.length > 0 ? rows[0] : null;
   } else {
     // Sort by id descending
@@ -120,8 +119,18 @@ export async function updatePasswordResetRequestStatus(id: number, status: 'pend
 export async function resetPassword(email: string, newPasswordHash: string): Promise<void> {
   const pool = await getDbPool();
   if (pool) {
-    await pool.query('UPDATE users SET password_hash = ? WHERE email = ?', [newPasswordHash, email]);
-    await pool.query('DELETE FROM password_reset_requests WHERE email = ?', [email]);
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      await conn.query('UPDATE users SET password_hash = ? WHERE lower(email) = lower(?)', [newPasswordHash, email]);
+      await conn.query('DELETE FROM password_reset_requests WHERE lower(email) = lower(?)', [email]);
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
   } else {
     const user = mockDb.users.find(u => u.email === email);
     if (user) {
@@ -323,7 +332,8 @@ export async function createOrder(payload: OrderCreationPayload): Promise<number
         // 1. Insert order with initial total_price of 0 (recalculated by application code below)
         const [orderResult]: any = await conn.query(
           `INSERT INTO orders (client_id, client_name, created_by, status_id, priority, total_price, notes, estimated_delivery_date, production_start_date)
-           VALUES (?, ?, ?, 1, ?, 0, ?, ?, ?)`,
+           VALUES (?, ?, ?, 1, ?, 0, ?, ?, ?)
+           RETURNING id`,
           [
             payload.client_id,
             payload.client_name,
@@ -346,7 +356,8 @@ export async function createOrder(payload: OrderCreationPayload): Promise<number
         // 3. Insert order item
         const [itemResult]: any = await conn.query(
           `INSERT INTO order_items (order_id, product_id, quantity, unit_price, subtotal)
-           VALUES (?, ?, 0, ?, 0)`,
+           VALUES (?, ?, 0, ?, 0)
+           RETURNING id`,
           [orderId, payload.product_id, unitPrice]
         );
         const itemId = itemResult.insertId;
@@ -414,10 +425,6 @@ export async function createOrder(payload: OrderCreationPayload): Promise<number
         return orderId;
       } catch (err: any) {
         await conn.rollback();
-        // Standardize SQL Error state if present
-        if (err.sqlState) {
-          throw new MySqlCustomError(err.sqlState, err.code || 'ERR_DB', err.message);
-        }
         throw err;
       } finally {
         conn.release();
@@ -881,9 +888,6 @@ export async function updateTaskStatus(
         await conn.commit();
       } catch (err: any) {
         await conn.rollback();
-        if (err.sqlState) {
-          throw new MySqlCustomError(err.sqlState, err.code || 'ERR_DB', err.message);
-        }
         throw err;
       } finally {
         conn.release();
@@ -956,14 +960,13 @@ export async function saveCapacityCalendar(
     try {
       await conn.beginTransaction();
       for (const config of configs) {
-        // UPSERT in MySQL
         await conn.query(
           `INSERT INTO work_calendar (work_date, stage_id, max_capacity_points, is_working_day, notes)
            VALUES (?, ?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE 
-             max_capacity_points = VALUES(max_capacity_points),
-             is_working_day = VALUES(is_working_day),
-             notes = VALUES(notes)`,
+           ON CONFLICT (work_date, stage_id) DO UPDATE SET
+             max_capacity_points = EXCLUDED.max_capacity_points,
+             is_working_day = EXCLUDED.is_working_day,
+             notes = EXCLUDED.notes`,
           [config.work_date, config.stage_id, config.max_capacity_points, config.is_working_day, config.notes || null]
         );
       }
@@ -1043,7 +1046,7 @@ export async function createProduct(name: string, basePrice: number, typeId: num
   let id = 0;
   if (pool) {
     const [res]: any = await pool.query(
-      'INSERT INTO products (name, base_price, active, product_type_id) VALUES (?, ?, TRUE, ?)',
+      'INSERT INTO products (name, base_price, active, product_type_id) VALUES (?, ?, TRUE, ?) RETURNING id',
       [name, basePrice, typeId]
     );
     id = res.insertId;
@@ -1090,7 +1093,7 @@ export async function createCatalogSize(code: string, name: string, sortOrder: n
   const genderValue = gender || 'unisex';
   let id = 0;
   if (pool) {
-    const [res]: any = await pool.query('INSERT INTO sizes (code, name, sort_order, gender) VALUES (?, ?, ?, ?)', [code, name, sortOrder, genderValue]);
+    const [res]: any = await pool.query('INSERT INTO sizes (code, name, sort_order, gender) VALUES (?, ?, ?, ?) RETURNING id', [code, name, sortOrder, genderValue]);
     id = res.insertId;
   } else {
     id = mockDb.sizes.length + 1;
@@ -1110,65 +1113,6 @@ export async function createCatalogSize(code: string, name: string, sortOrder: n
 export async function getCatalogSizes(): Promise<Size[]> {
   const pool = await getDbPool();
   if (pool) {
-    try {
-      // Safely ensure gender column exists in MySQL
-      await pool.query('SELECT gender FROM sizes LIMIT 1').catch(async () => {
-        console.log('Adding gender column to sizes table in MySQL...');
-        await pool.query("ALTER TABLE sizes ADD COLUMN gender VARCHAR(50) NOT NULL DEFAULT 'unisex'");
-        // Also update standard seeds if they were previously XS/S/M/L
-        await pool.query("UPDATE sizes SET gender = 'hombre' WHERE code IN ('XS', 'S', 'M', 'L', 'XL', 'XXL')");
-      });
-
-      // Check if both genders are represented (specifically 'mujer')
-      const [genderCheck]: any = await pool.query("SELECT COUNT(*) as count FROM sizes WHERE gender = 'mujer'");
-      const hasMujerSizes = genderCheck && genderCheck[0] && genderCheck[0].count > 0;
-
-      if (!hasMujerSizes) {
-        console.log('Seeding missing gender-specific sizes (Hombre and Mujer) in MySQL...');
-        const standardSizes = [
-          { code: 'H-XS', name: 'XS Hombre', sort_order: 1, gender: 'hombre' },
-          { code: 'H-S', name: 'S Hombre', sort_order: 2, gender: 'hombre' },
-          { code: 'H-M', name: 'M Hombre', sort_order: 3, gender: 'hombre' },
-          { code: 'H-L', name: 'L Hombre', sort_order: 4, gender: 'hombre' },
-          { code: 'H-XL', name: 'XL Hombre', sort_order: 5, gender: 'hombre' },
-          { code: 'H-XXL', name: 'XXL Hombre', sort_order: 6, gender: 'hombre' },
-          { code: 'M-XS', name: 'XS Mujer', sort_order: 11, gender: 'mujer' },
-          { code: 'M-S', name: 'S Mujer', sort_order: 12, gender: 'mujer' },
-          { code: 'M-M', name: 'M Mujer', sort_order: 13, gender: 'mujer' },
-          { code: 'M-L', name: 'L Mujer', sort_order: 14, gender: 'mujer' },
-          { code: 'M-XL', name: 'XL Mujer', sort_order: 15, gender: 'mujer' },
-          { code: 'M-XXL', name: 'XXL Mujer', sort_order: 16, gender: 'mujer' },
-          { code: 'UNI', name: 'Talla Única / Unisex', sort_order: 20, gender: 'unisex' }
-        ];
-
-        for (const sz of standardSizes) {
-          await pool.query(
-            `INSERT INTO sizes (code, name, sort_order, gender) 
-             VALUES (?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE name = VALUES(name), sort_order = VALUES(sort_order), gender = VALUES(gender)`,
-            [sz.code, sz.name, sz.sort_order, sz.gender]
-          );
-        }
-
-        // Link these newly seeded sizes to all existing products in product_sizes so they are active and accessible by default
-        const [products]: any = await pool.query('SELECT id FROM products');
-        if (products && products.length > 0) {
-          console.log(`Linking new sizes to ${products.length} existing products...`);
-          const [allSizes]: any = await pool.query('SELECT id FROM sizes');
-          for (const prod of products) {
-            for (const size of allSizes) {
-              await pool.query(
-                `INSERT IGNORE INTO product_sizes (product_id, size_id, price_modifier, active) 
-                 VALUES (?, ?, 0.00, TRUE)`,
-                [prod.id, size.id]
-              );
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Failed to run migration for sizes table:', err);
-    }
     const [rows]: any = await pool.query('SELECT * FROM sizes ORDER BY sort_order ASC');
     return rows;
   } else {
@@ -1184,7 +1128,7 @@ export async function addProductAttribute(productId: number, name: string, typeI
     try {
       await conn.beginTransaction();
       const [res]: any = await conn.query(
-        'INSERT INTO product_attributes (product_id, attribute_name, attribute_type_id, is_required) VALUES (?, ?, ?, ?)',
+        'INSERT INTO product_attributes (product_id, attribute_name, attribute_type_id, is_required) VALUES (?, ?, ?, ?) RETURNING id',
         [productId, name, typeId, isRequired]
       );
       const attrId = res.insertId;
@@ -1245,7 +1189,7 @@ export async function addProductSize(productId: number, sizeId: number, priceMod
     await pool.query(
       `INSERT INTO product_sizes (product_id, size_id, price_modifier, active) 
        VALUES (?, ?, ?, TRUE)
-       ON DUPLICATE KEY UPDATE price_modifier = VALUES(price_modifier), active = TRUE`,
+       ON CONFLICT (product_id, size_id) DO UPDATE SET price_modifier = EXCLUDED.price_modifier, active = TRUE`,
       [productId, sizeId, priceModifier]
     );
   } else {
@@ -1305,7 +1249,7 @@ export async function updateProductAttribute(
       const idsToDeactivate = existingIds.filter((id: number) => !inputIds.includes(id));
       if (idsToDeactivate.length > 0) {
         await conn.query(
-          'UPDATE product_attribute_values SET active = FALSE WHERE id IN (?)',
+          'UPDATE product_attribute_values SET active = FALSE WHERE id = ANY(?::int[])',
           [idsToDeactivate]
         );
       }
@@ -1395,7 +1339,7 @@ export async function updateProductSizes(
         await conn.query(
           `INSERT INTO product_sizes (product_id, size_id, price_modifier, active) 
            VALUES (?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE price_modifier = VALUES(price_modifier), active = VALUES(active)`,
+           ON CONFLICT (product_id, size_id) DO UPDATE SET price_modifier = EXCLUDED.price_modifier, active = EXCLUDED.active`,
           [productId, sz.size_id, parseFloat(sz.price_modifier as any), sz.active ? 1 : 0]
         );
       }
@@ -1452,7 +1396,7 @@ export async function createAuditLog(userName: string | null | undefined, action
         [auditUserName, action, oldValue, newValue]
       );
     } catch (err) {
-      console.error('Failed to write MySQL audit log:', err);
+      console.error('Failed to write audit log:', err);
     }
   } else {
     mockDb.auditLogs.push({
@@ -1473,7 +1417,7 @@ export async function getAuditLogs(): Promise<any[]> {
       const [rows]: any = await pool.query('SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 100');
       return rows;
     } catch (err) {
-      console.error('Failed to get MySQL audit logs:', err);
+      console.error('Failed to get audit logs:', err);
       return [];
     }
   } else {
@@ -1505,7 +1449,7 @@ export async function getPayments(orderId?: number): Promise<any[]> {
         return rows;
       }
     } catch (err) {
-      console.error('Failed to get MySQL payments:', err);
+      console.error('Failed to get payments:', err);
       return [];
     }
   } else {
@@ -1553,7 +1497,8 @@ export async function createPayment(
 
       const [res]: any = await conn.query(
         `INSERT INTO payments (order_id, amount, payment_method, notes, registered_by)
-         VALUES (?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?)
+         RETURNING id`,
         [orderId, amount, paymentMethod, notes || null, userId]
       );
       paymentId = res.insertId;
@@ -1574,7 +1519,7 @@ export async function createPayment(
     loggedPaidSoFar = existingPayments.reduce((sum, p) => sum + parseFloat(p.amount as any), 0);
     
     if (loggedPaidSoFar + amount > order.total_price + 0.01) {
-      throw new MySqlCustomError(
+      throw new BusinessRuleError(
         '45009',
         'ERR_OVERPAYMENT',
         `El pago de $${amount.toFixed(2)} excede el saldo pendiente de $${(order.total_price - loggedPaidSoFar).toFixed(2)}. Total del pedido: $${order.total_price.toFixed(2)}.`
@@ -1616,7 +1561,7 @@ export async function getInvoices(orderId?: number): Promise<any[]> {
         return rows;
       }
     } catch (err) {
-      console.error('Failed to get MySQL invoices:', err);
+      console.error('Failed to get invoices:', err);
       return [];
     }
   } else {
@@ -1704,7 +1649,8 @@ export async function createInvoice(
           order_id, invoice_number, codigo_generacion, numero_control, sello_recepcion, fecha_hora_generacion,
           receptor_nombre, receptor_nit, receptor_nrc, receptor_actividad_economica, receptor_direccion, receptor_telefono, receptor_correo, receptor_nombre_comercial,
           subtotal, tax, ventas_no_sujetas, ventas_exentas, ventas_gravadas, iva_retenido, iva_percibido, retencion_renta, discount, total, invoice_type
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        RETURNING id`,
         [
           orderId, invoiceNumber, codigoGeneracion, numeroControl, selloRecepcion, fechaHoraGeneracion,
           clientInfo.full_name || orderRows[0].client_name, clientInfo.nit || null, clientInfo.nrc || null, 
@@ -1746,7 +1692,7 @@ export async function createInvoice(
     subtotal = order.total_price;
     const discountPercentage = (discount / subtotal) * 100;
     if (discountPercentage > 15 && userRole !== 'admin') {
-      throw new MySqlCustomError(
+      throw new BusinessRuleError(
         '45010',
         'ERR_DISCOUNT_UNAUTHORIZED',
         `El descuento de $${discount.toFixed(2)} (${discountPercentage.toFixed(1)}%) supera el límite del 15% permitido para su rol. Solicite autorización de un administrador.`
@@ -1855,7 +1801,7 @@ export async function updateOrderStatus(
     if (oldStatusId !== statusId) {
       // Terminal state check (45011)
       if (oldStatusId === 5 || oldStatusId === 6) {
-        throw new MySqlCustomError(
+        throw new BusinessRuleError(
           '45011',
           'ERR_TERMINAL_STATE',
           'No se puede cambiar el estado de un pedido que ya está en estado terminal (Entregado o Cancelado).'
@@ -1864,14 +1810,14 @@ export async function updateOrderStatus(
 
       // Transition paths check (45012)
       if (statusId === 3 && oldStatusId !== 2) {
-        throw new MySqlCustomError(
+        throw new BusinessRuleError(
           '45012',
           'ERR_INVALID_TRANSITION',
           'Un pedido sólo puede pasar a "En Producción" si primero ha sido "Confirmado".'
         );
       }
       if (statusId === 4 && oldStatusId !== 3) {
-        throw new MySqlCustomError(
+        throw new BusinessRuleError(
           '45012',
           'ERR_INVALID_TRANSITION',
           'Un pedido sólo puede pasar a "Listo para Entrega" si primero estuvo "En Producción".'
@@ -1885,7 +1831,7 @@ export async function updateOrderStatus(
         const balance = order.total_price - totalPaid;
 
         if (balance > 0.01 && userRole !== 'admin') {
-          throw new MySqlCustomError(
+          throw new BusinessRuleError(
             '45013',
             'ERR_OUTSTANDING_BALANCE',
             `No se permite registrar la entrega del pedido #${orderId} con un saldo pendiente de $${balance.toFixed(2)}, a menos que cuente con autorización del Administrador.`
@@ -1926,17 +1872,16 @@ export async function updateOrderStatus(
 
 export async function getReportStats(): Promise<any> {
   const allOrders = await getOrders();
-  const allTasks = await getProductionTasks(); // returns tasks for today usually, let's get all tasks in sandbox
-  
-  // In sandbox let's fetch all tasks
-  let tasksList = mockDb.productionTasks;
+  const productsList = await getProducts();
+
+  let tasksList: any[] = mockDb.productionTasks;
   const pool = await getDbPool();
   if (pool) {
     try {
       const [rows]: any = await pool.query('SELECT * FROM production_tasks');
       tasksList = rows;
     } catch (err) {
-      console.error('MySQL load tasks error:', err);
+      console.error('Failed to load production tasks for report:', err);
     }
   }
 
@@ -1986,7 +1931,7 @@ export async function getReportStats(): Promise<any> {
   });
 
   // Profitability estimation per product
-  const productProfitability = mockDb.products.map((p) => {
+  const productProfitability = productsList.map((p) => {
     // Estimating standard profit margins based on variants and base cost
     const markup = p.base_price * 0.4; // 40% estimated markup
     return {
@@ -2186,7 +2131,7 @@ export async function getReworkEvents(orderId?: number): Promise<ReworkEvent[]> 
       const [rows]: any = await pool.query(sql, params);
       return rows;
     } catch (err) {
-      console.error('MySQL error in getReworkEvents:', err);
+      console.error('Database error in getReworkEvents:', err);
       return [];
     }
   } else {
@@ -2244,7 +2189,8 @@ export async function createReworkEvent(
         // Insert event
         const [res]: any = await conn.query(
           `INSERT INTO rework_events (production_task_id, order_id, rework_type, description, created_by, stage_id)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?)
+           RETURNING id`,
           [taskId, orderId, reworkType, description, userId, originalStageId]
         );
         insertedId = res.insertId;
@@ -2432,7 +2378,7 @@ export async function getRolePermissions(): Promise<any[]> {
   const pool = await getDbPool();
   if (pool) {
     try {
-      // Ensure seed permissions exist in MySQL as well
+      // Ensure seed permissions exist (the initial migration already seeds them)
       const [rows]: any = await pool.query('SELECT * FROM role_permissions');
       if (rows.length === 0) {
         // Seed default permissions
@@ -2440,10 +2386,11 @@ export async function getRolePermissions(): Promise<any[]> {
           [1, 'dashboard', 1], [1, 'calendar', 1], [1, 'create_order', 1], [1, 'kanban', 1], [1, 'admin_panel', 1], [1, 'my_orders', 0],
           [2, 'dashboard', 1], [2, 'calendar', 1], [2, 'create_order', 1], [2, 'kanban', 0], [2, 'admin_panel', 0], [2, 'my_orders', 0],
           [3, 'dashboard', 0], [3, 'calendar', 0], [3, 'create_order', 0], [3, 'kanban', 1], [3, 'admin_panel', 0], [3, 'my_orders', 0],
-          [4, 'dashboard', 0], [4, 'calendar', 0], [4, 'create_order', 0], [4, 'kanban', 0], [4, 'admin_panel', 0], [4, 'my_orders', 1]
+          [4, 'dashboard', 0], [4, 'calendar', 0], [4, 'create_order', 0], [4, 'kanban', 0], [4, 'admin_panel', 0], [4, 'my_orders', 1],
+          [5, 'dashboard', 0], [5, 'calendar', 0], [5, 'create_order', 0], [5, 'kanban', 1], [5, 'admin_panel', 0], [5, 'my_orders', 0]
         ];
         for (const perm of defaultPerms) {
-          await pool.query('INSERT IGNORE INTO role_permissions (role_id, permission_key, is_enabled) VALUES (?, ?, ?)', perm);
+          await pool.query('INSERT INTO role_permissions (role_id, permission_key, is_enabled) VALUES (?, ?, ?) ON CONFLICT DO NOTHING', perm);
         }
         const [seededRows]: any = await pool.query('SELECT * FROM role_permissions');
         return seededRows;
@@ -2464,12 +2411,13 @@ export async function updateRolePermission(roleId: number, permissionKey: string
     try {
       await pool.query(
         `INSERT INTO role_permissions (role_id, permission_key, is_enabled) 
-         VALUES (?, ?, ?) 
-         ON DUPLICATE KEY UPDATE is_enabled = ?`,
-        [roleId, permissionKey, isEnabled, isEnabled]
+         VALUES (?, ?, ?)
+         ON CONFLICT (role_id, permission_key) DO UPDATE SET is_enabled = EXCLUDED.is_enabled`,
+        [roleId, permissionKey, isEnabled]
       );
     } catch (err) {
-      console.error('Failed to update role_permissions in MySQL:', err);
+      console.error('Failed to update role_permissions:', err);
+      throw err;
     }
   } else {
     const existing = mockDb.rolePermissions.find(
@@ -2512,7 +2460,7 @@ export async function createUser(
   let user: any;
   if (pool) {
     const [result]: any = await pool.query(
-      'INSERT INTO users (full_name, email, password_hash, role_id, is_active, nit, nrc, nombre_comercial, actividad_economica, direccion, telefono) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO users (full_name, email, password_hash, role_id, is_active, nit, nrc, nombre_comercial, actividad_economica, direccion, telefono) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id',
       [fullName, email, passwordHash, roleId, isActive, nit, nrc, nombre_comercial, actividad_economica, direccion, telefono]
     );
     user = { id: result.insertId, full_name: fullName, email, role_id: roleId, is_active: isActive };
@@ -2587,11 +2535,10 @@ export async function repairWorkCalendarDefaultDays(): Promise<void> {
   if (pool) {
     await pool.query(
       `UPDATE work_calendar
-       SET is_working_day = IF(DAYOFWEEK(work_date) = 1, 0, 1),
-           notes = IF(DAYOFWEEK(work_date) = 1, ?, NULL)
+       SET is_working_day = (EXTRACT(DOW FROM work_date) <> 0),
+           notes = CASE WHEN EXTRACT(DOW FROM work_date) = 0 THEN ? ELSE NULL END
        WHERE notes = ?
-         AND ((DAYOFWEEK(work_date) = 1 AND is_working_day <> 0)
-           OR (DAYOFWEEK(work_date) <> 1 AND is_working_day <> 1))`,
+         AND is_working_day <> (EXTRACT(DOW FROM work_date) <> 0)`,
       [DEFAULT_SUNDAY_NOTE, DEFAULT_SUNDAY_NOTE]
     );
     return;
@@ -2635,15 +2582,20 @@ export async function extendWorkCalendar(daysAhead: number): Promise<void> {
         const isWorkingDay = current.getDay() !== 0;
         const notes = isWorkingDay ? null : DEFAULT_SUNDAY_NOTE;
 
+        const values: string[] = [];
+        const params: any[] = [];
         for (let stageId = 1; stageId <= 10; stageId++) {
           const capacity = [2, 6].includes(stageId) ? 200 : 500;
-          // Do not overwrite calendar entries configured manually by an administrator.
-          await conn.query(
-            `INSERT IGNORE INTO work_calendar (work_date, stage_id, max_capacity_points, is_working_day, notes)
-             VALUES (?, ?, ?, ?, ?)`,
-            [dateStr, stageId, capacity, isWorkingDay ? 1 : 0, notes]
-          );
+          values.push('(?, ?, ?, ?, ?)');
+          params.push(dateStr, stageId, capacity, isWorkingDay, notes);
         }
+        // Do not overwrite calendar entries configured manually by an administrator.
+        await conn.query(
+          `INSERT INTO work_calendar (work_date, stage_id, max_capacity_points, is_working_day, notes)
+           VALUES ${values.join(', ')}
+           ON CONFLICT (work_date, stage_id) DO NOTHING`,
+          params
+        );
         current.setDate(current.getDate() + 1);
       }
       await conn.commit();
@@ -2692,3 +2644,33 @@ export async function extendWorkCalendar(daysAhead: number): Promise<void> {
 
 
 
+
+/** Returns the client_id that owns an order, null when it has no client, or undefined when the order does not exist. */
+export async function getOrderClientId(orderId: number): Promise<number | null | undefined> {
+  const pool = await getDbPool();
+  if (pool) {
+    const [rows]: any = await pool.query('SELECT client_id FROM orders WHERE id = ?', [orderId]);
+    return rows.length > 0 ? rows[0].client_id : undefined;
+  }
+  const order = mockDb.orders.find((o) => o.id === orderId);
+  return order ? order.client_id : undefined;
+}
+
+/** Creates the first administrator from ADMIN_EMAIL / ADMIN_PASSWORD when the database has no active admin yet. */
+export async function ensureBootstrapAdmin(email: string, passwordHash: string, fullName: string): Promise<boolean> {
+  const pool = await getDbPool();
+  if (!pool) return false;
+  const [admins]: any = await pool.query('SELECT id FROM users WHERE role_id = 1 AND is_active = TRUE LIMIT 1');
+  if (admins.length > 0) return false;
+  const existing = await getUserByEmail(email);
+  if (existing) {
+    await pool.query('UPDATE users SET role_id = 1, is_active = TRUE WHERE id = ?', [existing.id]);
+  } else {
+    await pool.query(
+      'INSERT INTO users (full_name, email, password_hash, role_id, is_active) VALUES (?, ?, ?, 1, TRUE)',
+      [fullName, email.trim().toLowerCase(), passwordHash]
+    );
+  }
+  await createAuditLog('Sistema', 'Administrador inicial creado', 'Ninguno', `Administrador: ${email}`);
+  return true;
+}

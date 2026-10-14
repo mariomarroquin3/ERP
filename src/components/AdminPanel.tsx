@@ -1720,6 +1720,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                     <option value="2">Tienda / Ventas (Tienda)</option>
                     <option value="3">Taller / Producción (Taller)</option>
                     <option value="4">Cliente con Cuenta (Cliente)</option>
+                    <option value="5">Operario de Taller (Operario)</option>
                   </select>
                 </div>
 

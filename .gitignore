@@ -4,16 +4,18 @@ dist/
 coverage/
 .DS_Store
 *.log
-.env*
+
+# Variables de entorno (nunca subir secretos)
+.env
+.env.*
 !.env.example
-.env.example
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
+
 .claude/settings.local.json
-/.codex/
+.claude/
+.codex/
 config.toml
 codex.toml
-.codex/
-.codex/config.toml
-.codex/
-.claude/
-.env
-.env.local

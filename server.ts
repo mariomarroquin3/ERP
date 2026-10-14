@@ -3,7 +3,6 @@ import path from 'path';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { createServer as createViteServer } from 'vite';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 
@@ -60,13 +59,37 @@ import {
   createPasswordResetRequest,
   getAllPasswordResetRequests,
   updatePasswordResetRequestStatus,
-  resetPassword
+  resetPassword,
+  getOrderClientId,
+  ensureBootstrapAdmin
 } from './src/db/queries';
-import { MySqlCustomError } from './src/db/db';
+import { BusinessRuleError, isDatabaseConfigured } from './src/db/db';
+
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+// Fail fast on a misconfigured production deployment instead of silently
+// running on the in-memory sandbox or with a publicly known JWT secret.
+if (IS_PRODUCTION) {
+  const missing: string[] = [];
+  if (!isDatabaseConfigured()) missing.push('DATABASE_URL');
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) missing.push('JWT_SECRET (mínimo 32 caracteres)');
+  if (missing.length > 0) {
+    console.error(`Configuración incompleta para producción. Defina: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+} else if (!isDatabaseConfigured()) {
+  console.warn('DATABASE_URL no está definido: usando la base de datos en memoria (sandbox). Los datos se pierden al reiniciar.');
+}
 
 const app = express();
-const PORT = 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'maquila_erp_secure_key_2026';
+const PORT = parseInt(process.env.PORT || '3000', 10);
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-insecure-jwt-secret';
+const MIN_PASSWORD_LENGTH = 8;
+
+/** Display name for audit logs; the JWT payload carries it as `name`. */
+function actorName(user: any): string {
+  return user?.name || user?.full_name || user?.email || 'Usuario no identificado';
+}
 
 // Trust proxy setup for Express behind Cloud Run / Nginx proxy
 app.set('trust proxy', 1);
@@ -111,13 +134,40 @@ function authenticateToken(req: any, res: any, next: any) {
     return res.status(401).json({ success: false, message: 'Acceso denegado: Token no provisto' });
   }
 
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+  jwt.verify(token, JWT_SECRET, async (err: any, user: any) => {
     if (err) {
       return res.status(403).json({ success: false, message: 'Token inválido o expirado' });
     }
-    req.user = user;
-    next();
+    try {
+      // A deactivated user must lose access immediately, not when the token expires.
+      const current = await getUserById(user.id);
+      if (!current || !current.is_active) {
+        return res.status(401).json({ success: false, message: 'Usuario inactivo o inexistente. Inicie sesión nuevamente.' });
+      }
+      req.user = user;
+      next();
+    } catch (dbErr) {
+      next(dbErr);
+    }
   });
+}
+
+/**
+ * Clients may only read data of their own orders. Returns false (and sends a
+ * response) when a client requests another client's order or omits order_id.
+ */
+async function ensureClientOrderAccess(req: any, res: any, orderId: number | undefined): Promise<boolean> {
+  if (req.user.role !== 'cliente') return true;
+  if (!orderId || isNaN(orderId)) {
+    res.status(400).json({ success: false, message: 'Debe especificar el pedido (order_id).' });
+    return false;
+  }
+  const ownerId = await getOrderClientId(orderId);
+  if (ownerId === undefined || ownerId !== req.user.id) {
+    res.status(404).json({ success: false, message: 'Pedido no encontrado' });
+    return false;
+  }
+  return true;
 }
 
 // Role Validation helper
@@ -173,9 +223,8 @@ app.post('/api/auth/login', authLimiter, async (req: any, res: any, next: any) =
       return res.status(401).json({ success: false, message: 'Credenciales inválidas' });
     }
 
-    // In sandbox mock, we accept plaintext matching or bcrypt hash verification
-    const isMatch = await bcrypt.compare(password, user.password_hash) || password === 'admin123' || password === 'tienda123' || password === 'taller123' || password === 'cliente123';
-    
+    const isMatch = await bcrypt.compare(String(password), user.password_hash);
+
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Credenciales inválidas' });
     }
@@ -226,7 +275,8 @@ app.post('/api/auth/recover', authLimiter, async (req: any, res: any, next: any)
     }
 
     const request = await getPasswordResetRequest(email);
-    if (request) {
+    // A rejected request must not block the user forever: let them ask again.
+    if (request && request.status !== 'rejected') {
       return res.json({
         success: true,
         message: 'Su solicitud ya fue enviada y está en estado: ' + (request.status === 'pending' ? 'Pendiente' : (request.status === 'approved' ? 'Aprobada' : 'Rechazada')),
@@ -251,6 +301,9 @@ app.post('/api/auth/reset-password', authLimiter, async (req: any, res: any, nex
     const { email, newPassword } = req.body;
     if (!email || !newPassword) {
       return res.status(400).json({ success: false, message: 'Email y nueva contraseña son obligatorios' });
+    }
+    if (String(newPassword).length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ success: false, message: `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.` });
     }
 
     const request = await getPasswordResetRequest(email);
@@ -348,7 +401,7 @@ app.post('/api/catalogs/products', authenticateToken, requireRole(['admin']), as
     if (!product_type_id || isNaN(parseInt(product_type_id, 10))) {
       return res.status(400).json({ success: false, message: 'El tipo de producto es obligatorio y debe ser un identificador numérico.' });
     }
-    const id = await createProduct(name.trim(), parseFloat(base_price), parseInt(product_type_id, 10));
+    const id = await createProduct(name.trim(), parseFloat(base_price), parseInt(product_type_id, 10), actorName(req.user));
     res.json({ success: true, id, message: 'Producto creado exitosamente' });
   } catch (err) {
     next(err);
@@ -374,7 +427,7 @@ app.put('/api/catalogs/products/:id', authenticateToken, requireRole(['admin']),
     if (!product_type_id || isNaN(parseInt(product_type_id, 10))) {
       return res.status(400).json({ success: false, message: 'El tipo de producto es obligatorio.' });
     }
-    await updateProduct(productId, name.trim(), parseFloat(base_price), parseInt(product_type_id, 10), active !== false);
+    await updateProduct(productId, name.trim(), parseFloat(base_price), parseInt(product_type_id, 10), active !== false, actorName(req.user));
     res.json({ success: true, message: 'Producto actualizado exitosamente' });
   } catch (err) {
     next(err);
@@ -394,7 +447,7 @@ app.post('/api/catalogs/products/:id/attributes', authenticateToken, requireRole
     if (!attribute_type_id || isNaN(parseInt(attribute_type_id, 10))) {
       return res.status(400).json({ success: false, message: 'El tipo de atributo es obligatorio y debe ser numérico.' });
     }
-    await addProductAttribute(productId, attribute_name.trim(), parseInt(attribute_type_id, 10), !!is_required, values || []);
+    await addProductAttribute(productId, attribute_name.trim(), parseInt(attribute_type_id, 10), !!is_required, values || [], actorName(req.user));
     res.json({ success: true, message: 'Atributo agregado exitosamente' });
   } catch (err) {
     next(err);
@@ -414,7 +467,7 @@ app.post('/api/catalogs/products/:id/sizes', authenticateToken, requireRole(['ad
     if (price_modifier !== undefined && isNaN(parseFloat(price_modifier))) {
       return res.status(400).json({ success: false, message: 'El modificador de precio debe ser un número válido.' });
     }
-    await addProductSize(productId, parseInt(size_id, 10), parseFloat(price_modifier || 0));
+    await addProductSize(productId, parseInt(size_id, 10), parseFloat(price_modifier || 0), actorName(req.user));
     res.json({ success: true, message: 'Talla agregada/actualizada en el producto exitosamente' });
   } catch (err) {
     next(err);
@@ -429,7 +482,7 @@ app.put('/api/catalogs/products/:id/attributes/:attrId', authenticateToken, requ
     if (!attribute_name) {
       return res.status(400).json({ success: false, message: 'El nombre del atributo es obligatorio' });
     }
-    await updateProductAttribute(attributeId, productId, attribute_name, !!is_required, values || []);
+    await updateProductAttribute(attributeId, productId, attribute_name, !!is_required, values || [], actorName(req.user));
     res.json({ success: true, message: 'Atributo de catálogo y sus valores actualizados exitosamente' });
   } catch (err) {
     next(err);
@@ -443,7 +496,7 @@ app.put('/api/catalogs/products/:id/sizes', authenticateToken, requireRole(['adm
     if (!sizes || !Array.isArray(sizes)) {
       return res.status(400).json({ success: false, message: 'Se requiere una lista de tallas en el cuerpo' });
     }
-    await updateProductSizes(productId, sizes);
+    await updateProductSizes(productId, sizes, actorName(req.user));
     res.json({ success: true, message: 'Tallas de producto actualizadas exitosamente' });
   } catch (err) {
     next(err);
@@ -453,7 +506,10 @@ app.put('/api/catalogs/products/:id/sizes', authenticateToken, requireRole(['adm
 app.post('/api/catalogs/sizes', authenticateToken, requireRole(['admin']), async (req: any, res: any, next: any) => {
   try {
     const { code, name, sort_order, gender } = req.body;
-    const id = await createCatalogSize(code, name, parseInt(sort_order || 1, 10), gender);
+    if (!code || String(code).trim() === '' || !name || String(name).trim() === '') {
+      return res.status(400).json({ success: false, message: 'El código y el nombre de la talla son obligatorios.' });
+    }
+    const id = await createCatalogSize(String(code).trim(), String(name).trim(), parseInt(sort_order || 1, 10), gender, actorName(req.user));
     res.json({ success: true, id, message: 'Talla de catálogo creada exitosamente' });
   } catch (err) {
     next(err);
@@ -473,7 +529,7 @@ app.get('/api/orders', authenticateToken, requireRole(['admin', 'tienda', 'talle
   }
 });
 
-app.get('/api/orders/:id', authenticateToken, requireRole(['admin', 'tienda', 'taller']), async (req: any, res: any, next: any) => {
+app.get('/api/orders/:id', authenticateToken, requireRole(['admin', 'tienda', 'taller', 'operario']), async (req: any, res: any, next: any) => {
   try {
     const orderId = parseInt(req.params.id, 10);
     const order = await getOrderDetails(orderId);
@@ -503,6 +559,17 @@ app.post('/api/orders', authenticateToken, requireRole(['admin', 'tienda']), asy
 
     if (!client_id || !client_name || !estimated_delivery_date || !production_start_date || !product_id || !sizes || sizes.length === 0) {
       return res.status(400).json({ success: false, message: 'Faltan parámetros obligatorios en la orden' });
+    }
+
+    const isValidDate = (d: any) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && !isNaN(Date.parse(d));
+    if (!isValidDate(production_start_date) || !isValidDate(estimated_delivery_date)) {
+      return res.status(400).json({ success: false, message: 'Las fechas deben tener el formato AAAA-MM-DD.' });
+    }
+    if (estimated_delivery_date < production_start_date) {
+      return res.status(400).json({ success: false, message: 'La fecha de entrega no puede ser anterior al inicio de producción.' });
+    }
+    if (!Array.isArray(sizes) || sizes.some((s: any) => !Number.isInteger(Number(s.quantity)) || Number(s.quantity) <= 0)) {
+      return res.status(400).json({ success: false, message: 'Las cantidades por talla deben ser números enteros mayores que cero.' });
     }
 
     // Directiva 3: Sanitize payload and reject attempts to inject financial data or aggregate fields
@@ -547,12 +614,13 @@ app.post('/api/orders', authenticateToken, requireRole(['admin', 'tienda']), asy
 // ==========================================
 // PRODUCTION TASKS ENDPOINTS
 // ==========================================
-app.get('/api/production/tasks', authenticateToken, requireRole(['admin', 'taller', 'tienda', 'cliente']), async (req: any, res: any, next: any) => {
+app.get('/api/production/tasks', authenticateToken, requireRole(['admin', 'taller', 'tienda', 'cliente', 'operario']), async (req: any, res: any, next: any) => {
   try {
     const dateStr = req.query.date as string;
     const orderIdStr = req.query.order_id as string;
     const orderId = orderIdStr ? parseInt(orderIdStr, 10) : undefined;
-    
+    if (!(await ensureClientOrderAccess(req, res, orderId))) return;
+
     const tasks = await getProductionTasks(dateStr, orderId);
     res.json({ success: true, tasks });
   } catch (err) {
@@ -561,7 +629,7 @@ app.get('/api/production/tasks', authenticateToken, requireRole(['admin', 'talle
 });
 
 // GET Active Production Tasks (for the operational Kanban Board, unfiltered by date)
-app.get('/api/production/tasks/active', authenticateToken, requireRole(['admin', 'taller', 'tienda', 'cliente']), async (req: any, res: any, next: any) => {
+app.get('/api/production/tasks/active', authenticateToken, requireRole(['admin', 'taller', 'tienda', 'operario']), async (req: any, res: any, next: any) => {
   try {
     const tasks = await getActiveProductionTasks();
     res.json({ success: true, tasks });
@@ -634,7 +702,7 @@ app.post('/api/production/tasks/:id/advance', authenticateToken, requireRole(['a
     const taskId = parseInt(req.params.id, 10);
     const { comment } = req.body;
 
-    await advanceTaskStage(taskId, req.user.id, req.user.name || req.user.full_name || req.user.email, comment);
+    await advanceTaskStage(taskId, req.user.id, actorName(req.user), comment);
     res.json({ success: true, message: 'Fase del pedido avanzada con éxito' });
   } catch (err) {
     next(err);
@@ -649,13 +717,16 @@ app.post('/api/production/tasks/:id/rework', authenticateToken, requireRole(['ad
     if (!rework_type || !description) {
       return res.status(400).json({ success: false, message: 'rework_type y description son requeridos' });
     }
+    if (!['arreglo', 'hacer_de_nuevo'].includes(rework_type)) {
+      return res.status(400).json({ success: false, message: 'rework_type debe ser "arreglo" o "hacer_de_nuevo".' });
+    }
 
     await createReworkEvent(
       taskId, 
       rework_type, 
       description, 
       req.user.id, 
-      req.user.name || req.user.full_name || req.user.email,
+      actorName(req.user),
       target_stage_id ? parseInt(target_stage_id, 10) : 1
     );
     res.json({ success: true, message: 'Operación de retrabajo registrada con éxito' });
@@ -664,7 +735,7 @@ app.post('/api/production/tasks/:id/rework', authenticateToken, requireRole(['ad
   }
 });
 
-app.get('/api/production/orders/:orderId/rework', authenticateToken, requireRole(['admin', 'taller', 'tienda']), async (req: any, res: any, next: any) => {
+app.get('/api/production/orders/:orderId/rework', authenticateToken, requireRole(['admin', 'taller', 'tienda', 'operario']), async (req: any, res: any, next: any) => {
   try {
     const orderId = parseInt(req.params.orderId, 10);
     const reworkEvents = await getReworkEvents(orderId);
@@ -710,7 +781,11 @@ app.post('/api/capacity', authenticateToken, requireRole(['admin']), async (req:
       notes: c.notes || undefined
     }));
 
-    await saveCapacityCalendar(parsedConfigs);
+    if (parsedConfigs.some((c: any) => !/^\d{4}-\d{2}-\d{2}$/.test(String(c.work_date)) || isNaN(c.stage_id) || isNaN(c.max_capacity_points) || c.max_capacity_points < 0)) {
+      return res.status(400).json({ success: false, message: 'Configuración de capacidad inválida: revise fechas, etapas y capacidades.' });
+    }
+
+    await saveCapacityCalendar(parsedConfigs, actorName(req.user));
     res.json({ success: true, message: 'Calendario de capacidad guardado exitosamente' });
   } catch (err) {
     next(err);
@@ -749,6 +824,7 @@ app.put('/api/admin/password-requests/:id/status', authenticateToken, requireRol
       return res.status(400).json({ success: false, message: 'Estado inválido' });
     }
     await updatePasswordResetRequestStatus(id, status as 'pending' | 'approved' | 'rejected');
+    await createAuditLog(actorName(req.user), 'Solicitud de contraseña actualizada', `Solicitud ID: ${id}`, `Nuevo estado: ${status}`);
     res.json({ success: true, message: 'Estado de la solicitud actualizado' });
   } catch (err) {
     next(err);
@@ -775,15 +851,15 @@ app.post('/api/admin/users', authenticateToken, requireRole(['admin']), async (r
     if (!password || password.trim() === '') {
       return res.status(400).json({ success: false, message: 'La contraseña es un campo obligatorio.' });
     }
-    if (password.length < 6) {
-      return res.status(400).json({ success: false, message: 'La contraseña debe tener una longitud mínima de 6 caracteres por seguridad.' });
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ success: false, message: `La contraseña debe tener una longitud mínima de ${MIN_PASSWORD_LENGTH} caracteres por seguridad.` });
     }
 
     if (!role_id || isNaN(parseInt(role_id, 10))) {
       return res.status(400).json({ success: false, message: 'Debe seleccionar un rol de usuario válido.' });
     }
     const rId = parseInt(role_id, 10);
-    if (![1, 2, 3, 4].includes(rId)) {
+    if (![1, 2, 3, 4, 5].includes(rId)) {
       return res.status(400).json({ success: false, message: 'El rol de usuario seleccionado no existe en el sistema.' });
     }
 
@@ -812,21 +888,13 @@ app.post('/api/admin/users', authenticateToken, requireRole(['admin']), async (r
       passwordHash, 
       rId, 
       is_active !== false,
-      req.user?.full_name || 'Sistema',
+      actorName(req.user),
       nit || null,
       nrc || null,
       nombre_comercial || null,
       actividad_economica || null,
       direccion || null,
       telefono || null
-    );
-
-    // Audit log
-    await createAuditLog(
-      req.user.name || req.user.full_name || req.user.email,
-      'Usuario Creado',
-      'Ninguno',
-      `Creado usuario: ${full_name} (${email}) con rol_id: ${role_id}`
     );
 
     res.json({ success: true, user });
@@ -849,15 +917,7 @@ app.put('/api/admin/users/:id/status', authenticateToken, requireRole(['admin'])
       return res.status(400).json({ success: false, message: 'Un administrador no puede inactivarse a sí mismo.' });
     }
 
-    await updateUserStatus(userId, !!is_active);
-
-    // Audit log
-    await createAuditLog(
-      req.user.name,
-      'Estado de Usuario Modificado',
-      `ID: ${userId}`,
-      `Se cambió el estado activo de usuario ID ${userId} a: ${is_active ? 'Activo' : 'Inactivo'}`
-    );
+    await updateUserStatus(userId, !!is_active, actorName(req.user));
 
     res.json({ success: true, message: 'Estado del usuario actualizado exitosamente' });
   } catch (err) {
@@ -893,15 +953,7 @@ app.post('/api/admin/permissions', authenticateToken, requireRole(['admin']), as
       return res.status(400).json({ success: false, message: 'role_id, permission_key y is_enabled son obligatorios' });
     }
 
-    await updateRolePermission(parseInt(role_id, 10), permission_key, !!is_enabled);
-
-    // Audit log
-    await createAuditLog(
-      req.user.name,
-      'Permiso Modificado',
-      `Rol: ${role_id}, Permiso: ${permission_key}`,
-      `Nuevo estado: ${is_enabled ? 'Habilitado' : 'Deshabilitado'}`
-    );
+    await updateRolePermission(parseInt(role_id, 10), permission_key, !!is_enabled, actorName(req.user));
 
     res.json({ success: true });
   } catch (err) {
@@ -928,6 +980,7 @@ app.get('/api/payments', authenticateToken, requireRole(['admin', 'tienda', 'cli
   try {
     const orderIdStr = req.query.order_id as string;
     const orderId = orderIdStr ? parseInt(orderIdStr, 10) : undefined;
+    if (!(await ensureClientOrderAccess(req, res, orderId))) return;
     const payments = await getPayments(orderId);
     res.json({ success: true, payments });
   } catch (err) {
@@ -972,7 +1025,7 @@ app.post('/api/payments', authenticateToken, requireRole(['admin', 'tienda']), a
       finalMethod,
       notes || '',
       req.user.id,
-      req.user.full_name || req.user.email
+      actorName(req.user)
     );
     res.status(201).json({ success: true, paymentId, message: 'Pago registrado exitosamente' });
   } catch (err) {
@@ -985,6 +1038,7 @@ app.get('/api/invoices', authenticateToken, requireRole(['admin', 'tienda', 'cli
   try {
     const orderIdStr = req.query.order_id as string;
     const orderId = orderIdStr ? parseInt(orderIdStr, 10) : undefined;
+    if (!(await ensureClientOrderAccess(req, res, orderId))) return;
     const invoices = await getInvoices(orderId);
     res.json({ success: true, invoices });
   } catch (err) {
@@ -998,8 +1052,8 @@ app.post('/api/invoices', authenticateToken, requireRole(['admin', 'tienda']), a
     if (!order_id || isNaN(parseInt(order_id, 10))) {
       return res.status(400).json({ success: false, message: 'Debe especificar un identificador de pedido válido.' });
     }
-    if (!invoice_type || invoice_type.trim() === '') {
-      return res.status(400).json({ success: false, message: 'El tipo de factura es obligatorio.' });
+    if (!invoice_type || !['consumidor_final', 'credito_fiscal'].includes(String(invoice_type).trim())) {
+      return res.status(400).json({ success: false, message: 'El tipo de factura debe ser "consumidor_final" o "credito_fiscal".' });
     }
 
     if (discount !== undefined && isNaN(parseFloat(discount))) {
@@ -1021,7 +1075,7 @@ app.post('/api/invoices', authenticateToken, requireRole(['admin', 'tienda']), a
       invoice_type.trim(),
       discount ? parseFloat(discount) : 0,
       tax ? parseFloat(tax) : 0,
-      req.user.full_name || req.user.email,
+      actorName(req.user),
       req.user.role,
       status ? String(status).trim() : undefined,
       notes ? String(notes).trim() : undefined
@@ -1044,7 +1098,7 @@ app.put('/api/orders/:id/status', authenticateToken, requireRole(['admin', 'tien
       orderId,
       parseInt(status_id, 10),
       req.user.id,
-      req.user.full_name || req.user.email,
+      actorName(req.user),
       req.user.role,
       comment
     );
@@ -1065,6 +1119,16 @@ app.get('/api/reports/stats', authenticateToken, requireRole(['admin', 'tienda']
 });
 
 
+const NOT_FOUND_MESSAGES: Record<string, string> = {
+  'Pedido no encontrado': 'Pedido no encontrado',
+  'Task not found': 'Tarea de producción no encontrada',
+  'Product not found': 'Producto no encontrado',
+  'Usuario no encontrado': 'Usuario no encontrado',
+  'Atributo de producto no encontrado': 'Atributo de producto no encontrado',
+  'Product size not found': 'Talla de producto no encontrada',
+  'Attribute not found': 'Atributo de producto no encontrado',
+};
+
 // ==========================================
 // CENTRALIZED ERROR TRANSLATION MIDDLEWARE
 // ==========================================
@@ -1077,7 +1141,15 @@ app.use((err: any, req: any, res: any, next: any) => {
 
   const msgStr = String(err.message || '');
   
-  if (msgStr.includes('|') || err.sqlState || err instanceof MySqlCustomError) {
+  if (err?.type === 'entity.too.large') {
+    status = 413;
+    code = 'PAYLOAD_TOO_LARGE';
+    message = 'Los archivos adjuntos superan el tamaño permitido.';
+  } else if (err?.type === 'entity.parse.failed') {
+    status = 400;
+    code = 'INVALID_JSON';
+    message = 'El cuerpo de la petición no es JSON válido.';
+  } else if (err instanceof BusinessRuleError || err.sqlState) {
     const parts = msgStr.split('|');
     if (parts.length >= 2) {
       code = parts[0].trim();
@@ -1117,6 +1189,30 @@ app.use((err: any, req: any, res: any, next: any) => {
     } else {
       status = 400;
     }
+  } else if (typeof err.code === 'string' && /^[0-9A-Z]{5}$/.test(err.code)) {
+    // Postgres errors (SQLSTATE). Never leak SQL details to the client.
+    if (err.code === '23505') {
+      status = 409;
+      code = 'DUPLICATE';
+      message = 'Ya existe un registro con esos datos.';
+    } else if (err.code === '23503') {
+      status = 409;
+      code = 'REFERENCE_ERROR';
+      message = 'La operación hace referencia a un registro inexistente o en uso.';
+    } else if (err.code === '23514' || err.code === '23502' || err.code.startsWith('22')) {
+      status = 400;
+      code = 'INVALID_DATA';
+      message = 'Los datos enviados no son válidos.';
+    } else {
+      code = 'DB_ERROR';
+      message = 'Error de base de datos. Intente nuevamente.';
+    }
+  } else if (NOT_FOUND_MESSAGES[msgStr]) {
+    status = 404;
+    code = 'NOT_FOUND';
+    message = NOT_FOUND_MESSAGES[msgStr];
+  } else if (IS_PRODUCTION) {
+    message = 'Error interno del servidor';
   }
 
   res.status(status).json({
@@ -1129,7 +1225,27 @@ app.use((err: any, req: any, res: any, next: any) => {
 // ==========================================
 // VITE DEV SERVER OR STATIC SERVING IN PROD
 // ==========================================
+async function bootstrapAdmin() {
+  const email = process.env.ADMIN_EMAIL;
+  const password = process.env.ADMIN_PASSWORD;
+  if (!email || !password || !isDatabaseConfigured()) return;
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    console.error(`ADMIN_PASSWORD debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres; no se creó el administrador inicial.`);
+    return;
+  }
+  const created = await ensureBootstrapAdmin(email, await bcrypt.hash(password, 10), process.env.ADMIN_NAME || 'Administrador');
+  if (created) {
+    console.log(`Administrador inicial creado: ${email}. Puede quitar ADMIN_PASSWORD de las variables de entorno.`);
+  }
+}
+
 async function start() {
+  try {
+    await bootstrapAdmin();
+  } catch (err) {
+    console.error('No se pudo crear el administrador inicial:', err);
+  }
+
   // Extend work calendar immediately for the next 60 days
   repairWorkCalendarDefaultDays()
     .then(() => extendWorkCalendar(60))
@@ -1145,7 +1261,8 @@ async function start() {
       .catch((err) => console.error('Cron job work calendar extension failed:', err));
   });
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (!IS_PRODUCTION) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',

@@ -1,4 +1,5 @@
-import { createPool, Pool } from 'mysql2/promise';
+import pg from 'pg';
+import bcrypt from 'bcryptjs';
 
 // Define DB Types
 export interface Role {
@@ -263,18 +264,18 @@ export interface PasswordResetRequest {
 
 
 
-// Custom DB Error mimicking MySQL custom trigger errors
-export class MySqlCustomError extends Error {
-  errno: number;
+// Business rule violation raised by the data layer. The server error middleware
+// maps `sqlState` (45001-45013) to an HTTP status and shows `message` to the user.
+export class BusinessRuleError extends Error {
   sqlState: string;
   code: string;
 
   constructor(sqlState: string, codeName: string, message: string) {
     super(`${codeName}|${message}`);
-    this.errno = 1644; // Generic user signal error number in MySQL
+    this.name = 'BusinessRuleError';
     this.sqlState = sqlState;
     this.code = codeName;
-    Object.setPrototypeOf(this, MySqlCustomError.prototype);
+    Object.setPrototypeOf(this, BusinessRuleError.prototype);
   }
 }
 
@@ -413,14 +414,14 @@ class MockDatabase {
       { role_id: 5, permission_key: 'my_orders', is_enabled: false },
     ];
 
-    // 2. Users (Passwords: admin123, tienda123, taller123, cliente123 - prehashed using bcrypt)
-    // For convenience in mock login we can verify either hash or plain if bcrypt fails
+    // 2. Users (sandbox only). Passwords: admin123, tienda123, taller123, cliente123, operario123
+    const sandboxHash = (password: string) => bcrypt.hashSync(password, 8);
     this.users = [
-      { id: 1, full_name: 'Admin Maquila', email: 'admin@maquila.com', password_hash: '$2a$10$fG6T5R8V0v.M1pD.W6uHDe8n09Rj7P.A3l0E3gY5m1BqEshVMy1f2', role_id: 1, is_active: true },
-      { id: 2, full_name: 'Tienda Ventas', email: 'tienda@maquila.com', password_hash: '$2a$10$fG6T5R8V0v.M1pD.W6uHDe8n09Rj7P.A3l0E3gY5m1BqEshVMy1f2', role_id: 2, is_active: true },
-      { id: 3, full_name: 'Supervisor Taller', email: 'taller@maquila.com', password_hash: '$2a$10$fG6T5R8V0v.M1pD.W6uHDe8n09Rj7P.A3l0E3gY5m1BqEshVMy1f2', role_id: 3, is_active: true },
-      { id: 4, full_name: 'Cliente Ejemplo', email: 'cliente@maquila.com', password_hash: '$2a$10$fG6T5R8V0v.M1pD.W6uHDe8n09Rj7P.A3l0E3gY5m1BqEshVMy1f2', role_id: 4, is_active: true },
-      { id: 5, full_name: 'Operario Juan', email: 'operario@maquila.com', password_hash: '$2a$10$fG6T5R8V0v.M1pD.W6uHDe8n09Rj7P.A3l0E3gY5m1BqEshVMy1f2', role_id: 5, is_active: true },
+      { id: 1, full_name: 'Admin Maquila', email: 'admin@maquila.com', password_hash: sandboxHash('admin123'), role_id: 1, is_active: true },
+      { id: 2, full_name: 'Tienda Ventas', email: 'tienda@maquila.com', password_hash: sandboxHash('tienda123'), role_id: 2, is_active: true },
+      { id: 3, full_name: 'Supervisor Taller', email: 'taller@maquila.com', password_hash: sandboxHash('taller123'), role_id: 3, is_active: true },
+      { id: 4, full_name: 'Cliente Ejemplo', email: 'cliente@maquila.com', password_hash: sandboxHash('cliente123'), role_id: 4, is_active: true },
+      { id: 5, full_name: 'Operario Juan', email: 'operario@maquila.com', password_hash: sandboxHash('operario123'), role_id: 5, is_active: true },
     ];
     this.nextIds['users'] = 6;
 
@@ -719,7 +720,7 @@ class MockDatabase {
     );
 
     if (!cal) {
-      throw new MySqlCustomError(
+      throw new BusinessRuleError(
         '45003',
         'ERR_MISSING_CAPACITY_DEFINITION',
         'No hay capacidad definida en work_calendar para esta fecha y etapa'
@@ -727,7 +728,7 @@ class MockDatabase {
     }
 
     if (!cal.is_working_day) {
-      throw new MySqlCustomError(
+      throw new BusinessRuleError(
         '45002',
         'ERR_NON_WORKING_DAY',
         'La fecha seleccionada no es día laborable para esta etapa'
@@ -744,7 +745,7 @@ class MockDatabase {
       .reduce((sum, t) => sum + t.workload_points, 0);
 
     if (committed + workload > cal.max_capacity_points) {
-      throw new MySqlCustomError(
+      throw new BusinessRuleError(
         '45001',
         'ERR_CAPACITY_EXCEEDED',
         `Capacidad de taller excedida para esta fecha y etapa. Capacidad disponible: ${cal.max_capacity_points - committed} puntos, Requerido: ${workload} puntos`
@@ -760,34 +761,158 @@ if (!globalAny.__mockDb) {
 }
 export const mockDb: MockDatabase = globalAny.__mockDb;
 
-// Pool variable for real MySQL
-let mysqlPool: Pool | null = null;
+// ==========================================
+// POSTGRES / SUPABASE CONNECTION
+// ==========================================
 
-export async function getDbPool(): Promise<Pool | null> {
-  if (mysqlPool) return mysqlPool;
+// Return DATE columns as plain 'YYYY-MM-DD' strings. The frontend and the
+// scheduling code compare and display dates as strings; turning them into JS
+// Date objects shifts them by the server timezone.
+pg.types.setTypeParser(pg.types.builtins.DATE, (value: string) => value);
+// COUNT/SUM over integers return BIGINT, and NUMERIC(10,2) money columns come
+// back as strings by default. Both stay well inside JS number precision here.
+pg.types.setTypeParser(pg.types.builtins.INT8, (value: string) => Number(value));
+pg.types.setTypeParser(pg.types.builtins.NUMERIC, (value: string) => Number(value));
 
-  const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT } = process.env;
-  if (!DB_HOST || !DB_USER) {
-    // If not configured, we silently return null and fall back to MockDatabase
-    return null;
+/** Result of a write statement, shaped like the old mysql2 ResultSetHeader. */
+export interface WriteResult {
+  insertId: number;
+  affectedRows: number;
+  rows: any[];
+}
+
+/**
+ * Converts `?` placeholders to Postgres `$n` placeholders, leaving question
+ * marks inside quoted strings or identifiers untouched.
+ */
+export function toPgPlaceholders(sql: string): string {
+  let out = '';
+  let index = 0;
+  let quote: string | null = null;
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+    if (quote) {
+      out += ch;
+      if (ch === quote) {
+        if (sql[i + 1] === quote) {
+          out += sql[++i];
+        } else {
+          quote = null;
+        }
+      }
+    } else if (ch === "'" || ch === '"') {
+      quote = ch;
+      out += ch;
+    } else if (ch === '?') {
+      out += `$${++index}`;
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}
+
+const WRITE_COMMANDS = new Set(['INSERT', 'UPDATE', 'DELETE']);
+
+async function runQuery(client: pg.Pool | pg.PoolClient, sql: string, params: any[] = []): Promise<[any, pg.FieldDef[]]> {
+  const result = await client.query(toPgPlaceholders(sql), params);
+  if (WRITE_COMMANDS.has(result.command)) {
+    const write: WriteResult = {
+      insertId: result.rows[0]?.id ?? 0,
+      affectedRows: result.rowCount ?? 0,
+      rows: result.rows,
+    };
+    return [write, result.fields];
+  }
+  return [result.rows, result.fields];
+}
+
+/** A single connection checked out from the pool, used for transactions. */
+export class DbConnection {
+  constructor(private client: pg.PoolClient) {}
+
+  query(sql: string, params?: any[]): Promise<[any, pg.FieldDef[]]> {
+    return runQuery(this.client, sql, params);
   }
 
-  try {
-    mysqlPool = createPool({
-      host: DB_HOST,
-      user: DB_USER,
-      password: DB_PASSWORD,
-      database: DB_NAME,
-      port: DB_PORT ? parseInt(DB_PORT, 10) : 3306,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
-    });
-    console.log('Successfully connected to MySQL database!');
-    return mysqlPool;
-  } catch (err) {
-    console.error('Failed to initialize MySQL pool, falling back to mock database:', err);
-    return null;
+  async beginTransaction(): Promise<void> {
+    await this.client.query('BEGIN');
+  }
+
+  async commit(): Promise<void> {
+    await this.client.query('COMMIT');
+  }
+
+  async rollback(): Promise<void> {
+    await this.client.query('ROLLBACK');
+  }
+
+  release(): void {
+    this.client.release();
   }
 }
-// Mensaje para guardar el db.ts en el commit
+
+/**
+ * Thin wrapper around pg.Pool that keeps the `[rows] = await pool.query(sql, params)`
+ * calling convention used throughout queries.ts. Write statements that need the new
+ * id must end with `RETURNING id`.
+ */
+export class DbPool {
+  constructor(private pool: pg.Pool) {}
+
+  query(sql: string, params?: any[]): Promise<[any, pg.FieldDef[]]> {
+    return runQuery(this.pool, sql, params);
+  }
+
+  async getConnection(): Promise<DbConnection> {
+    return new DbConnection(await this.pool.connect());
+  }
+
+  end(): Promise<void> {
+    return this.pool.end();
+  }
+}
+
+let dbPool: DbPool | null = null;
+
+/** True when the server is configured to use Postgres (Supabase) instead of the in-memory sandbox. */
+export function isDatabaseConfigured(): boolean {
+  return !!process.env.DATABASE_URL;
+}
+
+function sslConfig(connectionString: string): pg.PoolConfig['ssl'] {
+  const mode = (process.env.DATABASE_SSL || '').toLowerCase();
+  if (mode === 'disable' || mode === 'false') return false;
+  const isLocal = /@(localhost|127\.0\.0\.1|\[::1\])(:|\/)/.test(connectionString);
+  if (isLocal && mode === '') return false;
+  // Supabase requires TLS. If the project's CA certificate is provided
+  // (Project Settings > Database > SSL configuration), verify it.
+  if (process.env.DATABASE_CA_CERT) {
+    return { ca: process.env.DATABASE_CA_CERT.replace(/\\n/g, '\n'), rejectUnauthorized: true };
+  }
+  return { rejectUnauthorized: false };
+}
+
+export async function getDbPool(): Promise<DbPool | null> {
+  if (dbPool) return dbPool;
+
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    // Not configured: fall back to the in-memory sandbox (development only;
+    // server.ts refuses to start in production without DATABASE_URL).
+    return null;
+  }
+
+  const pool = new pg.Pool({
+    connectionString,
+    ssl: sslConfig(connectionString),
+    max: process.env.DATABASE_POOL_MAX ? parseInt(process.env.DATABASE_POOL_MAX, 10) : 10,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+  });
+  pool.on('error', (err) => {
+    console.error('Unexpected Postgres pool error:', err);
+  });
+  dbPool = new DbPool(pool);
+  return dbPool;
+}
